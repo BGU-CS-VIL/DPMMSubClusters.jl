@@ -48,13 +48,6 @@ function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hype
     return niw_sufficient_statistics(size(points,2),points_sum,S)
 end
 
-function log_multivariate_gamma(x::Number, D::Number)
-    res::Float64 = D*(D-1)/4*log(pi)
-    for d = 1:D
-        res += lgamma(x+(1-d)/2)
-    end
-    return res
-end
 
 function log_marginal_likelihood(hyper::niw_hyperparams, posterior_hyper::niw_hyperparams, suff_stats::niw_sufficient_statistics)
     D = length(suff_stats.points_sum)
