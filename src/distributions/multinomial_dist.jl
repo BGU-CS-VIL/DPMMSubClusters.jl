@@ -1,7 +1,5 @@
 using LinearAlgebra
 using Distributions
-using PDMats
-
 
 struct multinomial_dist <: distibution_sample
     α::AbstractArray{Float64,1}
