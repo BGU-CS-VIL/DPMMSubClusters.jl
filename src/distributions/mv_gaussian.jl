@@ -1,7 +1,5 @@
-include("../ds.jl")
 using LinearAlgebra
 using Distributions
-using PDMats
 
 
 struct mv_gaussian <: distibution_sample

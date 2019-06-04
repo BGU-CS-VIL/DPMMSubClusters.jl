@@ -1,8 +1,3 @@
-include("ds.jl")
-include("distributions/niw.jl")
-
-
-
 #Data Loading specifics
 data_path = "/path/to/data/"
 data_prefix = "data_prefix"  #If the data file name is bob.npy, this should be 'bob'

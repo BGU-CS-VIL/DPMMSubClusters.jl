@@ -1,5 +1,3 @@
-include("../ds.jl")
-
 struct niw_hyperparams <: distribution_hyper_params
     κ::Float64
     m::AbstractArray{Float64}

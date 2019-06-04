@@ -1,5 +1,3 @@
-include("../ds.jl")
-
 struct multinomial_hyper <: distribution_hyper_params
     α::AbstractArray{Float64,1}
 end
