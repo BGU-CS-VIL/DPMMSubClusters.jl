@@ -1,4 +1,4 @@
-@everywhere using dpmm_subclusters
+@everywhere using DPMMSubClusters
 using Plots
 using LinearAlgebra
 
