@@ -35,12 +35,6 @@ end
 function sample_distribution(hyperparams::niw_hyperparams)
     Σ = rand(Distributions.InverseWishart(hyperparams.ν, hyperparams.ν* hyperparams.ψ))
     μ = rand(Distributions.MvNormal(hyperparams.m, Σ/hyperparams.κ))
-    return mv_gaussian(μ,Σ)
-end
-
-function sample_distribution(hyperparams::niw_hyperparams)
-    Σ = rand(Distributions.InverseWishart(hyperparams.ν, hyperparams.ν* hyperparams.ψ))
-    μ = rand(Distributions.MvNormal(hyperparams.m, Σ/hyperparams.κ))
     return mv_gaussian(μ,Σ,inv(Σ),logdet(Σ))
 end
 

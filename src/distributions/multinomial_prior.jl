@@ -26,14 +26,6 @@ function create_sufficient_statistics(hyper::multinomial_hyper,posterior::multin
     return multinomial_sufficient_statistics(size(points,2),points_sum)
 end
 
-function log_multivariate_gamma(x::Number, D::Number)
-    res::Float64 = D*(D-1)/4*log(pi)
-    for d = 1:D
-        res += lgamma(x+(1-d)/2)
-    end
-    return res
-end
-
 function log_marginal_likelihood(hyper::multinomial_hyper, posterior_hyper::multinomial_hyper, suff_stats::multinomial_sufficient_statistics)
     D = length(suff_stats.points_sum)
     logpi = log(pi)
