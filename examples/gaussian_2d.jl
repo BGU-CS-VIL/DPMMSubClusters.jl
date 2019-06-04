@@ -18,7 +18,7 @@ end
 
 x,labels,clusters = generate_gaussian_data(10^5,2,6)
 
-hyper_params = dpmm_subclusters.niw_hyperparams(1.0,
+hyper_params = DPMMSubClusters.niw_hyperparams(1.0,
            zeros(2),
            4,
            Matrix{Float64}(I, 2, 2)*1)
