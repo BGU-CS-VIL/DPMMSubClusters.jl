@@ -1,5 +1,6 @@
 @everywhere using dpmm_subclusters
 using Plots
+using LinearAlgebra
 
 
 
