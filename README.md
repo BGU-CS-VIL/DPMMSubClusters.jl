@@ -1,4 +1,4 @@
-# dpmm_subclusters.jl
+# DPMMSubClusters.jl
 This repository is a *Julia* package which holds the code for our paper **Distributed MCMC Inference in Dirichlet Process Mixture Models Using Julia**, which was presented at CCGrid2019 Hyper Computing Maching Learning workshop (HPML).
 
 ## Requirements
@@ -19,7 +19,7 @@ The following dependencies are required:
 ## Installation
 
 Use Julia's package manager:
-`(v1.0) pkg> add https://github.com/dinarior/dpmm_subclusters.jl`
+`(v1.0) pkg> add https://github.com/dinarior/DPMMSubClusters.jl`
 
 ## Usage
 
@@ -66,7 +66,7 @@ end
 ```
 The `labels` hold the final assignments of the points, `local_clusters` contains the infered clusters parameters and `weights` contain the cluster weights.
 
-Full example, including the plots, is supplied here [put a link for the example]
+Full example, including the plots, is supplied [here](https://github.com/dinarior/dpmm_subclusters.jl/blob/master/examples/gaussian_2d.jl).
 
 ### Advanced
 In this mode you are required to supply a params file, example for one is the file `global_params.jl`.
@@ -100,25 +100,3 @@ If you use this code for your work, please cite the following:
   year={2019}
 }
 ```
-
-This package is licensed under the MIT "Expat" License:
-
-> Copyright (c) 2019: Ben Gurion University VIL group, MIT CSAIL.
-> Permission is hereby granted, free of charge, to any person obtaining
-> a copy of this software and associated documentation files (the
-> "Software"), to deal in the Software without restriction, including
-> without limitation the rights to use, copy, modify, merge, publish,
-> distribute, sublicense, and/or sell copies of the Software, and to
-> permit persons to whom the Software is furnished to do so, subject to
-> the following conditions:
->
-> The above copyright notice and this permission notice shall be
-> included in all copies or substantial portions of the Software.
->
-> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-> EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-> MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-> IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-> CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-> TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-> SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
