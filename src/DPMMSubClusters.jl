@@ -1,6 +1,6 @@
 __precompile__()
 
-module dpmm_subclusters
+module DPMMSubClusters
 
 
 using Distributed
