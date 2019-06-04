@@ -66,7 +66,7 @@ end
 ```
 The `labels` hold the final assignments of the points, `local_clusters` contains the infered clusters parameters and `weights` contain the cluster weights.
 
-Full example, including the plots, is supplied [here](https://github.com/dinarior/dpmm_subclusters.jl/blob/master/examples/gaussian_2d.jl).
+Full example, including the plots, is supplied [here](https://github.com/dinarior/DPMMSubClusters.jl/blob/master/examples/gaussian_2d.jl).
 
 ### Advanced
 In this mode you are required to supply a params file, example for one is the file `global_params.jl`.
