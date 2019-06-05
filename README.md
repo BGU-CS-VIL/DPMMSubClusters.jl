@@ -1,7 +1,7 @@
 # DPMMSubClusters.jl
 This repository is a *Julia* package which holds the code for our paper **Distributed MCMC Inference in Dirichlet Process Mixture Models Using Julia**, which was presented at CCGrid2019 Hyper Computing Maching Learning workshop (HPML) and is available [here](https://www.cs.bgu.ac.il/~dinari/papers/dpmm_hpml2019.pdf).<br>
 <p align="center">
-<img src="https://www.cs.bgu.ac.il/~dinari/images/clusters_low.gif" alt="DPGMM SubClusters 2d example">
+<img src="https://www.cs.bgu.ac.il/~dinari/images/clusters_low_slow.gif" alt="DPGMM SubClusters 2d example">
 </p>
 
 ## Requirements
