@@ -22,7 +22,7 @@ The following dependencies are required:
 ## Installation
 
 Use Julia's package manager:
-`(v1.0) pkg> add https://github.com/dinarior/DPMMSubClusters.jl`
+`(v1.0) pkg> add DPMMSubClusters`
 
 ## Usage
 
