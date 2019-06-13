@@ -22,9 +22,9 @@ function init_model_from_data(all_data)
     end
     if use_verbose
         println("Loading and distributing data:")
-        @time data = distribute(all_data)
+        @time data = distribute(load_data(data_path, prefix = data_prefix))
     else
-        data = distribute(all_data)
+        data = distribute(load_data(data_path, prefix = data_prefix))
     end
 
     total_dim = size(data,2)
