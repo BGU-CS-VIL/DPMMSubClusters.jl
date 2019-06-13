@@ -28,7 +28,7 @@ function generate_sph_gaussian_data(N::Int64, D::Int64, K::Int64)
 end
 
 
-function generate_gaussian_data(N::Int64, D::Int64, K::Int64)
+function generate_gaussian_data(N::Int64, D::Int64, K::Int64,MixtureVar::Float64)
 	x = randn(D,N)
 	tpi = rand(Dirichlet(ones(K)))
 	tzn = rand(Multinomial(N,tpi))
@@ -42,7 +42,7 @@ function generate_gaussian_data(N::Int64, D::Int64, K::Int64)
 	for i=1:length(tzn)
 		indices = ind:ind+tzn[i]-1
 		tz[indices] .= i
-		tmean[:,i] .= rand(MvNormal(zeros(D), 100*Matrix{Float64}(I, D, D)))
+		tmean[:,i] .= rand(MvNormal(zeros(D), MixtureVar*Matrix{Float64}(I, D, D)))
 		tcov[:,:,i] .= rand(InverseWishart(D+2, Matrix{Float64}(I, D, D)))
 		d = MvNormal(tmean[:,i], tcov[:,:,i])
 		for j=indices
