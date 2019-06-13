@@ -6,3 +6,4 @@ julia:
 
 
 codecov: true
+coveralls: true

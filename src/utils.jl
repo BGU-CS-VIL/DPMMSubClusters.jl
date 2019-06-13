@@ -25,19 +25,6 @@ function dcolwise_dot!(r::AbstractArray, a::AbstractMatrix, b::AbstractMatrix)
     end
 end
 
-function dcolwise_dot(a::AbstractMatrix, b::AbstractMatrix)
-    n = size(a,2)
-    r = zeros(n)
-    for j = 1:n
-        v = zero(promote_type(eltype(a), eltype(b)))
-        for i = 1:size(a, 1)
-            @inbounds v += a[i, j]*b[i, j]
-        end
-        r[j] = v
-    end
-    return r
-end
-
 
 # #Note that we expect the log_likelihood_array to be in rows (samples) x columns (clusters) , this is due to making it more efficent that way.
 function sample_log_cat_array!(labels::AbstractArray{Int64,1}, log_likelihood_array::AbstractArray{Float64,2})
@@ -51,43 +38,6 @@ function sample_log_cat_array!(labels::AbstractArray{Int64,1}, log_likelihood_ar
     for i=1:length(labels)
         labels[i] = sample(1:size(log_likelihood_array,2), ProbabilityWeights(log_likelihood_array[i,:]))
     end
-end
-
-function sample_log_cat_array!(labels::AbstractArray{Int64,1}, log_likelihood_array::AbstractArray{Float64,2}, weights_vector::AbstractArray{Float64,1})
-    # println("lsample log cat" * string(log_likelihood_array))
-    max_log_prob_arr = maximum(log_likelihood_array, dims = 2)
-    log_likelihood_array .-= max_log_prob_arr
-    map!(exp,log_likelihood_array,log_likelihood_array)
-    # println("lsample log cat2" * string(log_likelihood_array))
-    sum_prob_arr = sum(log_likelihood_array, dims =[2])
-    log_likelihood_array ./=  sum_prob_arr
-    for i=1:length(weights_vector)
-        log_likelihood_array[:,i] .*= weights_vector[i]
-    end
-    for i=1:length(labels)
-        old_label = labels[i]
-        labels[i] = sample(1:size(log_likelihood_array,2), ProbabilityWeights(log_likelihood_array[i,:]))
-        new_label = labels[i]
-        if old_label == 7 && new_label == 10
-            println(log_likelihood_array[i,[7,10]])
-        end
-    end
-end
-
-
-function sample_log_cat(logcat_array::AbstractArray{Float64, 1})
-    max_logprob::Float64 = maximum(logcat_array)
-    for i=1:length(logcat_array)
-        logcat_array[i] = exp(logcat_array[i]-max_logprob)
-    end
-    sum_logprob::Float64 = sum(logcat_array)
-    i::Int64 = 1
-    c::Float64 = logcat_array[1]
-    u::Float64 = rand()*sum(logcat_array)
-    while c < u && i < length(logcat_array)
-        c += logcat_array[i += 1]
-    end
-    return i
 end
 
 

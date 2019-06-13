@@ -10,8 +10,9 @@ using Distributions
 using SpecialFunctions
 using CatViews
 using LinearAlgebra
-using Random
 using JLD2
+
+import Random:seed!
 
 include("ds.jl")
 include("distributions/niw.jl")

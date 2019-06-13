@@ -1,6 +1,6 @@
 function init_model()
     if random_seed != nothing
-        @eval @everywhere Random.seed!($random_seed)
+        @eval @everywhere seed!($random_seed)
     end
     if use_verbose
         println("Loading and distributing data:")
