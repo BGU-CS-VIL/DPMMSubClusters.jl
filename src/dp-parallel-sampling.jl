@@ -4,9 +4,9 @@ function init_model()
     end
     if use_verbose
         println("Loading and distributing data:")
-        @time data = distribute(all_data)
+        @time data = distribute(load_data(data_path, prefix = data_prefix))
     else
-        data = distribute(all_data)
+        data = distribute(load_data(data_path, prefix = data_prefix))
     end
     total_dim = size(data,2)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
@@ -22,9 +22,9 @@ function init_model_from_data(all_data)
     end
     if use_verbose
         println("Loading and distributing data:")
-        @time data = distribute(load_data(data_path, prefix = data_prefix))
+        @time data = distribute(all_data)
     else
-        data = distribute(load_data(data_path, prefix = data_prefix))
+        data = distribute(all_data)
     end
 
     total_dim = size(data,2)
