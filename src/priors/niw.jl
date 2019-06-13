@@ -21,13 +21,6 @@ function calc_posterior(prior:: niw_hyperparams, suff_statistics::niw_sufficient
     m = (prior.m.*prior.κ + suff_statistics.points_sum) / κ
     ψ = (prior.ν * prior.ψ + prior.κ*prior.m*prior.m' -κ*m*m'+ suff_statistics.S) / ν
     ψ = Matrix(Hermitian(ψ))
-    if  isposdef(ψ) == false
-        println(ψ)
-        println(m)
-        println(κ*m*m')
-        println(suff_statistics)
-        println(prior)
-    end
     return niw_hyperparams(κ,m,ν,ψ)
 end
 
