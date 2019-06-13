@@ -3,7 +3,7 @@ using Distributed
 using LinearAlgebra
 addprocs(2)
 @everywhere using Random
-using DPMMSubClusters
+@everywhere using DPMMSubClusters
 
 include("multinomial_tests.jl")
 include("niw_tests.jl")

@@ -15,10 +15,15 @@ using JLD2
 import Random:seed!
 
 include("ds.jl")
-include("distributions/niw.jl")
+
+#Priors:
+include("priors/niw.jl")
+include("priors/multinomial_prior.jl")
+
+#Distributions:
 include("distributions/mv_gaussian.jl")
 include("distributions/multinomial_dist.jl")
-include("distributions/multinomial_prior.jl")
+
 include("utils.jl")
 include("shared_actions.jl")
 include("local_clusters_actions.jl")
