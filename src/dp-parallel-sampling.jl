@@ -1,17 +1,17 @@
 function init_model()
     if random_seed != nothing
-        @eval @everywhere Random.seed!($random_seed)
+        @eval @everywhere seed!($random_seed)
     end
-    println("Loading and distributing data:")
-    @time data = distribute(load_data(data_path, prefix = data_prefix))
+    if use_verbose
+        println("Loading and distributing data:")
+        @time data = distribute(all_data)
+    else
+        data = distribute(all_data)
+    end
     total_dim = size(data,2)
-    println("α: "* string(α))
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
-
-
     labels = distribute(rand(1:initial_clusters,(size(data,2))))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
-    # labels_subcluster = distribute(ones(size(data,2)))
     group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float64[])
     return dp_parallel_sampling(model_hyperparams,group)
 end
@@ -20,16 +20,17 @@ function init_model_from_data(all_data)
     if random_seed != nothing
         @eval @everywhere Random.seed!($random_seed)
     end
-    println("Loading and distributing data:")
-    @time data = distribute(all_data)
+    if use_verbose
+        println("Loading and distributing data:")
+        @time data = distribute(all_data)
+    else
+        data = distribute(all_data)
+    end
+
     total_dim = size(data,2)
-    println("α: "* string(α))
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
-
-
     labels = distribute(rand(1:initial_clusters,(size(data,2))))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
-
     group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float64[])
     return dp_parallel_sampling(model_hyperparams,group)
 end
@@ -44,29 +45,60 @@ function init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_co
     broadcast_cluster_params([create_thin_cluster_params(x) for x in dp_model.group.local_clusters],[1.0])
 end
 
-function dp_parallel(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,iters::Int64, init_clusters::Int64 = 1,seed = nothing)
-    iterations = iters
-    random_seed = seed
-    hyper_params = local_hyper_params
-    initial_clusters = init_clusters
+function dp_parallel(all_data::AbstractArray{Float64,2},
+        local_hyper_params::distribution_hyper_params,
+        α_param::Float64,
+         iters::Int64 = 100,
+         init_clusters::Int64 = 1,
+         seed = nothing,
+         verbose = true,
+         save_model = false)
+    global iterations = iters
+    global random_seed = seed
+    global hyper_params = local_hyper_params
+    global initial_clusters = init_clusters
+    global α = α_param
+    global use_verbose = verbose
+    global should_save_model = save_model
     dp_model = init_model_from_data(all_data)
     global leader_dict = get_node_leaders_dict()
     init_first_clusters!(dp_model, initial_clusters)
-    println("Node Leaders:")
-    println(leader_dict)
+    if use_verbose
+        println("Node Leaders:")
+        println(leader_dict)
+    end
     @eval @everywhere global hard_clustering = $hard_clustering
     return run_model(dp_model, 1)
 end
 
+function fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+    dp_model = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose)
+    return dp_model.group.labels, [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
+end
 
-function dp_parallel(model_params::String)
+
+function fit(all_data::AbstractArray{Float64,2},α_param::Float64;
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+    data_dim = size(all_data,1)
+    cov_mat = Matrix{Float64}(I, data_dim, data_dim)
+    local_hyper_params = niw_hyperparams(1,zeros(data_dim),data_dim+3,cov_mat)
+    dp_model = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose)
+    return dp_model.group.labels, [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
+end
+
+
+function dp_parallel(model_params::String; verbose = true, save_model = true)
     include(model_params)
-    dp_model = init_model()
+    global use_verbose = verbose
+    dp_model = inidt_model()
     global leader_dict = get_node_leaders_dict()
+    global should_save_model = save_model
     init_first_clusters!(dp_model, initial_clusters)
-
-    println("Node Leaders:")
-    println(leader_dict)
+    if use_verbose
+        println("Node Leaders:")
+        println(leader_dict)
+    end
     @eval @everywhere global hard_clustering = $hard_clustering
     return run_model(dp_model, 1 ,model_params)
 end
@@ -87,12 +119,14 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
         iter_time = time()
 
         group_step(dp_model.group, no_more_splits, final, i==1)
-        println("Iteration: " * string(i) * " || Clusters count: " *
-            string(length(dp_model.group.local_clusters)) *
-            " || Log posterior: " * string(calculate_posterior(dp_model)) *
-            " || Iter Time:" * string(time() - iter_time) *
-             " || Total time:" * string(time() - start_time + prev_time))
-        if i % model_save_interval == 0
+        if use_verbose
+            println("Iteration: " * string(i) * " || Clusters count: " *
+                string(length(dp_model.group.local_clusters)) *
+                " || Log posterior: " * string(calculate_posterior(dp_model)) *
+                " || Iter Time:" * string(time() - iter_time) *
+                 " || Total time:" * string(time() - start_time + prev_time))
+        end
+        if i % model_save_interval == 0 && should_save_model
             println("Saving Model:")
             save_time = time()
             @time save_model(dp_model,save_path, save_file_prefix, i, time() - start_time, model_params)

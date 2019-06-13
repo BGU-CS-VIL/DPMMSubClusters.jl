@@ -1,3 +1,8 @@
+[![Build Status](https://api.travis-ci.com/dinarior/DPMMSubClusters.jl.svg?branch=master)](https://travis-ci.com/dinarior/DPMMSubClusters.jl)
+[![Coverage Status](https://coveralls.io/repos/github/dinarior/DPMMSubClusters.jl/badge.svg?branch=master)](https://coveralls.io/github/dinarior/DPMMSubClusters.jl?branch=master)
+[![codecov](https://codecov.io/gh/dinarior/DPMMSubClusters.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/dinarior/DPMMSubClusters.jl)
+
+
 # DPMMSubClusters.jl
 This repository is a *Julia* package which holds the code for our paper **Distributed MCMC Inference in Dirichlet Process Mixture Models Using Julia**, which was presented at CCGrid2019 Hyper Computing Maching Learning workshop (HPML) and is available [here](https://www.cs.bgu.ac.il/~dinari/papers/dpmm_hpml2019.pdf).<br>
 <p align="center">

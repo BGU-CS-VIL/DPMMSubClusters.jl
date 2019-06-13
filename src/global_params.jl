@@ -25,6 +25,6 @@ hyper_params = niw_hyperparams(1.0,
 #Saving specifics:
 enable_saving = true
 model_save_interval = 1000
-save_path = "/path/to/save/dir"
+save_path = "/path/to/save/dir/"
 overwrite_prec = false
 save_file_prefix = "checkpoint_"
