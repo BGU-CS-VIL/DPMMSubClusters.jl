@@ -45,7 +45,7 @@ hyper_params = DPMMSubClusters.niw_hyperparams(1.0,
            data_cov)
 
 #Run the model
-labels,clusters,weights = DPMMSubClusters.fit(input_arr,hyper_params,50000.0,iters = 1000, verbose = true)
+labels,clusters,weights = DPMMSubClusters.fit(input_arr,hyper_params,50000.0,iters = 200, verbose = true)
 
 #Get the cluster color means
 color_means = [x.μ[1:3] for x in clusters]

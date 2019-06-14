@@ -400,26 +400,6 @@ function remove_empty_clusters!(group::local_group)
     group.local_clusters = new_vec
 end
 
-function merge_global_cluster!(group::local_group,global_cluster::Int64, merged_index::Int64)
-    clusters_count = 0
-    for cluster in group.local_clusters
-        if cluster.globalCluster == global_cluster
-            clusters_count += 1
-        end
-    end
-    for (i,cluster) in enumerate(group.local_clusters)
-        if cluster.globalCluster == global_cluster
-            sublabels = @view group.labels_subcluster[group.labels .== i]
-            sublabels[(x -> x ==3 || x==4).(sublabels)] .-= 2
-        elseif cluster.globalCluster == merged_index
-            sublabels = @view group.labels_subcluster[group.labels .== i]
-            sublabels[(x -> x ==1 || x==2).(sublabels)] .+= 2
-            cluster.globalCluster = global_cluster
-        end
-    end
-end
-
-
 
 function rand_subclusters_labels!(labels::AbstractArray{Int64,1})    #lr_arr = create_array(zeros(length(labels), 2))
     if size(labels,1) == 0

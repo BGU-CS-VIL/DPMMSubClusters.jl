@@ -1,6 +1,8 @@
 using Test
 using Distributed
 using LinearAlgebra
+using NPZ
+
 addprocs(2)
 @everywhere using Random
 @everywhere using DPMMSubClusters

@@ -10,11 +10,6 @@ struct mv_gaussian <: distibution_sample
 end
 
 
-function dinvquad!(r,a,x)
-    dcolwise_dot!(r,x, a \ x)
-end
-
-
 function log_likelihood!(r::AbstractArray,x::AbstractArray, distibution_sample::mv_gaussian , group::Int64 = -1)
     z = x .- distibution_sample.μ
     dcolwise_dot!(r,z, distibution_sample.invΣ * z)

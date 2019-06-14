@@ -4,9 +4,9 @@ function init_model()
     end
     if use_verbose
         println("Loading and distributing data:")
-        @time data = distribute(all_data)
+        @time data = distribute(load_data(data_path, prefix = data_prefix))
     else
-        data = distribute(all_data)
+        data = distribute(load_data(data_path, prefix = data_prefix))
     end
     total_dim = size(data,2)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
@@ -74,7 +74,7 @@ end
 function fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
     dp_model = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose)
-    return dp_model.group.labels, [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
+    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
 end
 
 
@@ -84,14 +84,14 @@ function fit(all_data::AbstractArray{Float64,2},α_param::Float64;
     cov_mat = Matrix{Float64}(I, data_dim, data_dim)
     local_hyper_params = niw_hyperparams(1,zeros(data_dim),data_dim+3,cov_mat)
     dp_model = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose)
-    return dp_model.group.labels, [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
+    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
 end
 
 
 function dp_parallel(model_params::String; verbose = true, save_model = true)
     include(model_params)
     global use_verbose = verbose
-    dp_model = inidt_model()
+    dp_model = init_model()
     global leader_dict = get_node_leaders_dict()
     global should_save_model = save_model
     init_first_clusters!(dp_model, initial_clusters)
