@@ -57,13 +57,6 @@ function get_labels_histogram(labels)
     return sort(collect(hist_dict), by=x->x[1])
 end
 
-function create_global_labels(group::local_group)
-    clusters_dict = Dict()
-    for (i,v) in enumerate(group.local_clusters)
-        clusters_dict[i] = v.globalCluster
-    end
-    return [clusters_dict[i] for i in group.labels]
-end
 
 function get_node_leaders_dict()
     leader_dict = Dict()
