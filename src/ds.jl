@@ -81,12 +81,6 @@ function copy_local_cluster(c::local_cluster)
     return deepcopy(c)
 end
 
-function update_group_from_stats!(group::local_group, stats::local_group_stats)
-    group.labels = stats.labels
-    group.labels_subcluster = stats.labels_subcluster
-    group.local_clusters = stats.local_clusters
-end
-
 
 function create_pts_less_group(group::local_group)
     return pts_less_group(group.model_hyperparams , Array(group.labels), Array(group.labels_subcluster), group.local_clusters, group.weights)
