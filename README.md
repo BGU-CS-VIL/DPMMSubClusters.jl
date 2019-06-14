@@ -1,5 +1,4 @@
 [![Build Status](https://api.travis-ci.com/dinarior/DPMMSubClusters.jl.svg?branch=master)](https://travis-ci.com/dinarior/DPMMSubClusters.jl)
-[![Coverage Status](https://coveralls.io/repos/github/dinarior/DPMMSubClusters.jl/badge.svg?branch=master)](https://coveralls.io/github/dinarior/DPMMSubClusters.jl?branch=master)
 [![codecov](https://codecov.io/gh/dinarior/DPMMSubClusters.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/dinarior/DPMMSubClusters.jl)
 
 
@@ -31,29 +30,40 @@ Use Julia's package manager:
 
 ## Usage
 
-This package is aimed for distributed parallel computing, note that for it to work properly you must use it with atleast one worker process. More workers are encouraged for increased performance.
+This package is aimed for distributed parallel computing, note that for it to work properly you must use it with atleast one worker process. More workers, distributed across different machines, are encouraged for increased performance.
 
-The package currently contains priors for handling *Multinomial* or *Gaussian* mixture models.  Adding new priors is easy, and the process is described [here](#new_prior).
+The package currently contains priors for handling *Multinomial* or *Gaussian* mixture models.
 
 While being very verstile in the setting and configuration, there are 2 modes which you can work with, either the *Basic*, which will use mostly predefined configuration, and will take the data as an argument, or *Advanced* use, which allows more configuration, loading data from file, and saving the model, or running from a saved checkpoint.
 
 ### Basic
-In order to run in the basic mode, use the function `dp_parallel(data,hyper_params, iterations, inital_cluster,seed)`
+In order to run in the basic mode, use the function:
+```
+labels, clusters, weights = fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+```
+
+Or, if opting for the default Gaussian weak prior:
+```
+labels, clusters, weights = fit(all_data::AbstractArray{Float64,2},α_param::Float64;
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+```
 
 `data` should be of the shape `DxN` , `hyper_params` are one of the available hyper parameters.
-The `initial_cluster` and `seed` are optional.
+While saving the model with this mode is allowed, it is not encouraged. for that there exists the advanced mode.
 
-Example:
+Examples:
+[2d Gaussian with plotting](https://nbviewer.jupyter.org/github/dinarior/DPMMSubClusters.jl/blob/master/examples/2d_gaussian/gaussian_2d.ipynb).
+[Image Segmentation](https://nbviewer.jupyter.org/github/dinarior/DPMMSubClusters.jl/blob/master/examples/image_seg/dpgmm-superpixels.ipynb).
+
+
+### Advanced
+In this mode you are required to supply a params file, example for one is the file `global_params.jl`.
+It includes all the configurable params. Running it is as simple as:
 ```
-x,labels,clusters = generate_gaussian_data(10^5,2,6)
-
-hyper_params = dpmm_subclusters.niw_hyperparams(1.0,
-           zeros(2),
-           4,
-           Matrix{Float64}(I, 2, 2)*1)
-
-dp = dp_parallel(x,hyper_params, 100, 1)
+dp = dp_parallel(model_params::String; verbose = true, save_model = true)
 ```
+
 The returned value `dp` is a data structure:
 ```
 mutable struct dp_parallel_sampling
@@ -72,17 +82,10 @@ mutable struct local_group
     weights::Vector{Float64}
 end
 ```
-The `labels` hold the final assignments of the points, `local_clusters` contains the infered clusters parameters and `weights` contain the cluster weights.
-
-Full example, including the plots, is supplied [here](https://github.com/dinarior/DPMMSubClusters.jl/blob/master/examples/gaussian_2d.jl).
-
-### Advanced
-In this mode you are required to supply a params file, example for one is the file `global_params.jl`.
-It includes all the configurable params. Running it is as simple as:
-`dp_parallel(params_file)`
 
 Note that for data loading the package use `NPZ` , which utilize python *numpy* files. Thus the data files must be *pythonic*, and be of the shape `NxD`.
 
+[Example of running from a params file, including saving and loading, with a multinomial prior](https://nbviewer.jupyter.org/github/dinarior/DPMMSubClusters.jl/blob/master/examples/save_load_model/save_load_example.ipynb).
 
 ## Additional Functions
 Additional function exposed to the user include:
