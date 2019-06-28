@@ -13,8 +13,12 @@ function create_first_local_cluster(group::local_group)
         cp.suff_statistics.N,
         cpl.suff_statistics.N,
         cpl.suff_statistics.N)
-    @sync for i in workers()
-        @spawnat i split_first_cluster_worker!(group)
+    if use_threads
+        split_first_cluster_threads!(group)
+    else
+        @sync for i in workers()
+            @spawnat i split_first_cluster_worker!(group)
+        end
     end
     return cluster
 end
@@ -212,6 +216,10 @@ function split_first_cluster_worker!(group::local_group)
     sub_labels .= rand(1:2,length(sub_labels))
 end
 
+function split_first_cluster_threads!(group::local_group)
+    group.labels_subcluster = rand(1:2,length(group.labels_subcluster))
+end
+
 
 
 function split_cluster_local_worker!(group::local_group,indices::Vector{Int64}, new_indices::Vector{Int64})
@@ -288,6 +296,7 @@ function should_split_local!(should_split::AbstractArray{Float64,1},
         (lgamma(cp.suff_statistics.N) + log_likihood)
     if log_HR > log(rand())
         should_split .= 1
+        println("bob")
     end
 end
 
@@ -313,13 +322,29 @@ function check_and_split!(group::local_group, final::Bool)
         end
     end
     if length(indices) > 0
-        @sync for i in workers()
-            @spawnat i split_cluster_local_worker!(group,indices,new_indices)
+        if use_threads
+            split_clusters_threads!(group,indices,new_indices)
+        else
+            @sync for i in workers()
+                @spawnat i split_cluster_local_worker!(group,indices,new_indices)
+            end
         end
     end
     return vcat(indices,new_indices)
 end
 
+
+function split_clusters_threads!(group::local_group,indices::Vector{Int64}, new_indices::Vector{Int64})
+    labels = group.labels
+    sub_labels = group.labels_subcluster
+    pts = group.points
+    Threads.@threads for (i,index) in enumerate(indices)
+        cluster_sub_labels = @view sub_labels[labels .== index]
+        cluster_labels = @view labels[labels .== index]
+        cluster_labels[cluster_sub_labels .== 2] .= new_indices[i]
+        cluster_sub_labels .= rand(1:2,length(cluster_sub_labels))
+    end
+end
 
 function check_and_merge!(group::local_group, final::Bool)
     mergable = zeros(1)
@@ -342,10 +367,26 @@ function check_and_merge!(group::local_group, final::Bool)
             mergable[1] = 0
         end
     end
-    for i in workers()
-        @spawnat i merge_clusters_worker!(group,indices,new_indices)
+    if use_threads
+        merge_clusters_threads!(group,indices,new_indices)
+    else
+        for i in workers()
+            @spawnat i merge_clusters_worker!(group,indices,new_indices)
+        end
     end
     return indices
+end
+
+function merge_clusters_threads!(group::local_group,indices::Vector{Int64}, new_indices::Vector{Int64})
+    labels = group.labels
+    sub_labels = group.labels_subcluster
+    Threads.@threads for (i,index) in enumerate(indices)
+        cluster_sub_labels = @view sub_labels[labels .== index]
+        cluster_sub_labels .= 1
+        cluster_sub_labels = @view sub_labels[labels .== new_indices[i]]
+        cluster_sub_labels .= 2
+        labels[labels .== new_indices[i]] .= index
+    end
 end
 
 
@@ -394,8 +435,19 @@ function remove_empty_clusters!(group::local_group)
             push!(new_vec,cluster)
         end
     end
-    @sync for i in workers()
-        @spawnat i remove_empty_clusters_worker!(group.labels, pts_count)
+    if use_threads
+        labels = group.labels
+        removed = 0
+        for (index, count) in enumerate(pts_count)
+            if count == 0
+                labels[labels .> index - removed] .-= 1
+                removed += 1
+            end
+        end
+    else
+        @sync for i in workers()
+            @spawnat i remove_empty_clusters_worker!(group.labels, pts_count)
+        end
     end
     group.local_clusters = new_vec
 end
@@ -439,10 +491,20 @@ function reset_bad_clusters!(group::local_group)
             c.cluster_params.splittable = false
         end
     end
-    @sync for i in workers()
-        @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
+    if use_threads
+        Threads.@threads for i in bad_clusters
+            group.labels_subcluster[group.labels .== i] .= rand(1:2,size(group.labels_subcluster[group.labels .== i],1))
+        end
+    else
+        @sync for i in workers()
+            @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
+        end
     end
-    update_suff_stats_posterior!(group,bad_clusters)
+    if use_threads
+        update_suff_stats_posterior_threads!(group,bad_clusters)
+    else
+        update_suff_stats_posterior!(group,bad_clusters)
+    end
 end
 
 function broadcast_cluster_params(params_vector, weights_vector)
@@ -489,6 +551,108 @@ function group_step(group::local_group, no_more_splits::Bool, final::Bool,first:
         indices = []
         @sync indices = check_and_split!(group, final)
         update_suff_stats_posterior!(group, indices)
+    end
+    @sync check_and_merge!(group, final)
+    remove_empty_clusters!(group)
+    return local_group_stats(group.labels, group.labels_subcluster, group.local_clusters)
+end
+
+function sample_labels_threads!(group::local_group, final::Bool)
+    lbls = group.labels
+    parr = zeros(length(lbls), length(clusters_vector))
+
+    cvector::Vector{thin_cluster_params} = clusters_vector
+    clusters_len::Int64 = length(clusters_vector)
+    cluster = cvector[clusters_len]
+
+    Threads.@threads for k in 1:clusters_len
+        cluster = cvector[k]
+        @inbounds log_likelihood!(reshape((@view parr[:,k]),:,1), group.points, cluster.cluster_dist)
+    end
+
+
+
+
+    # Threads.@threads for (k,cluster) in enumerate(clusters_vector)
+    #     log_likelihood!(reshape((@view parr[:,k]),:,1), group.points, cluster.cluster_dist)
+    # end
+    # Threads.@threads for (k,v) in enumerate(clusters_weights)
+    #     parr[:,k] .+= log(v)
+    # end
+    Threads.@threads for k in 1:length(clusters_weights)
+        parr[:,k] .+= log(clusters_weights[k])
+    end
+    nthreads = Threads.nthreads()
+    relpart = length(lbls) / nthreads
+    Threads.@threads for i=1:nthreads
+        first_index = Int((i-1)*relpart + 1)
+        last_index =Int( i == nthreads ? length(lbls) : i*relpart)
+        if final
+            lbls[first_index : last_index] .= mapslices(argmax, parr[first_index : last_index,:], dims= [2])[:]
+        else
+            sample_log_cat_array!((@view lbls[first_index : last_index]), parr[first_index : last_index,:])
+        end
+    end
+end
+
+
+function sample_sub_clusters_threads!(group)
+    pts = group.points
+    labels = group.labels
+    sub_labels = group.labels_subcluster
+    parr = zeros(length(labels), 2)
+    Threads.@threads for i=1:length(labels)
+        local cluster_params = clusters_vector[labels[i]]
+        log_likelihood!((@view parr[i,1]),pts,cluster_params.l_dist)
+        log_likelihood!((@view parr[i,2]),pts,cluster_params.r_dist)
+        parr[i,1] += log(cluster_params.lr_weights[1])
+        parr[i,2] += log(cluster_params.lr_weights[2])
+    end
+    nthreads = Threads.nthreads()
+    relpart = length(labels) / nthreads
+    Threads.@threads for i=1:nthreads
+        first_index = Int((i-1)*relpart + 1)
+        last_index = Int(i == nthreads ? length(sub_labels) : i*relpart)
+        sample_log_cat_array!((@view sub_labels[first_index : last_index]), parr[first_index : last_index,:])
+    end
+end
+
+function update_suff_stats_posterior_threads!(group, indices = nothing)
+    if indices == nothing
+        indices = collect(1:length(clusters_vector))
+    end
+    points = group.points
+    labels = group.labels
+    Threads.@threads for index in indices
+        pts = @view points[:, labels .== index]
+        sub_labels = @view group.labels_subcluster[labels .== index]
+        cluster = group.local_clusters[index]
+        cp = cluster.cluster_params
+        cp.cluster_params_l.suff_statistics =  create_sufficient_statistics(hyper_params,hyper_params, @view pts[:,sub_labels .== 1])
+        cp.cluster_params_r.suff_statistics = create_sufficient_statistics(hyper_params,hyper_params, @view pts[:,sub_labels .== 2])
+        cp.cluster_params.suff_statistics = aggregate_suff_stats(cp.cluster_params_l.suff_statistics,cp.cluster_params_r.suff_statistics)
+        cluster.points_count = cp.cluster_params.suff_statistics.N
+        update_splittable_cluster_params!(cluster.cluster_params)
+        group.local_clusters[index] = cluster
+    end
+end
+
+
+
+
+
+
+function group_step_threads(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
+    sample_clusters!(group,false)
+    set_global_data([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
+    sample_labels_threads!(group, (hard_clustering ? true : final))
+    sample_sub_clusters_threads!(group)
+    update_suff_stats_posterior_threads!(group)
+    reset_bad_clusters!(group)
+    if no_more_splits == false
+        indices = []
+        @sync indices = check_and_split!(group, final)
+        update_suff_stats_posterior_threads!(group, indices)
     end
     @sync check_and_merge!(group, final)
     remove_empty_clusters!(group)

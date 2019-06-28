@@ -11,6 +11,7 @@ using SpecialFunctions
 using CatViews
 using LinearAlgebra
 using JLD2
+using Base.Threads
 
 import Random:seed!
 
