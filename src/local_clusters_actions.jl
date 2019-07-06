@@ -21,7 +21,7 @@ end
 
 
 function sample_sub_clusters!(group::local_group)
-    for i in workers()
+    @sync for i in workers()
         @spawnat i sample_sub_clusters_worker!(group.points, group.labels, group.labels_subcluster)
     end
 end
@@ -61,7 +61,7 @@ end
 function sample_labels!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float64,2},
         final::Bool)
-    for i in workers()
+    @sync for i in workers()
         @spawnat i sample_labels_worker!(labels,points,final)
     end
 end
@@ -164,7 +164,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
         indices = collect(1:length(group.local_clusters))
     end
     if use_leader
-        for i in collect(keys(leader_dict))
+        @sync for i in collect(keys(leader_dict))
             workers_suff_dict[i] = remotecall(create_suff_stats_dict_node_leader, i ,group.points,
                 group.labels,
                 group.labels_subcluster,
@@ -173,7 +173,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
                 indices)
         end
     else
-        for i in workers()
+        @sync for i in workers()
             workers_suff_dict[i] = @spawnat i create_suff_stats_dict_worker(group.points,
                 group.labels,
                 group.labels_subcluster,
@@ -342,7 +342,7 @@ function check_and_merge!(group::local_group, final::Bool)
             mergable[1] = 0
         end
     end
-    for i in workers()
+    @sync for i in workers()
         @spawnat i merge_clusters_worker!(group,indices,new_indices)
     end
     return indices
@@ -481,9 +481,9 @@ end
 function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
     sample_clusters!(group,false)
     broadcast_cluster_params([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
-    @sync sample_labels!(group, (hard_clustering ? true : final))
-    @sync sample_sub_clusters!(group)
-    @sync update_suff_stats_posterior!(group)
+    sample_labels!(group, (hard_clustering ? true : final))
+    sample_sub_clusters!(group)
+    update_suff_stats_posterior!(group)
     reset_bad_clusters!(group)
     if no_more_splits == false
         indices = []
