@@ -16,7 +16,7 @@ function calc_posterior(prior:: multinomial_hyper, suff_statistics::multinomial_
 end
 
 function sample_distribution(hyperparams::multinomial_hyper)
-    return multinomial_dist(log.(rand(Dirichlet(hyperparams.α))))
+    return multinomial_dist(log.(rand(Dirichlet(Float64.(hyperparams.α)))))
 end
 
 function create_sufficient_statistics(hyper::multinomial_hyper,posterior::multinomial_hyper,points::AbstractArray{Float32,2}, pts_to_group = 0)

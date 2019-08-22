@@ -4,7 +4,7 @@ function create_splittable_from_params(params::cluster_parameters, α::Float32)
     params_l.distribution = sample_distribution(params.posterior_hyperparams)
     params_r = deepcopy(params)
     params_r.distribution = sample_distribution(params.posterior_hyperparams)
-    lr_weights = rand(Dirichlet([α / 2, α / 2]))
+    lr_weights = rand(Dirichlet(Float64.([α / 2, α / 2])))
     return splittable_cluster_params(params,params_l,params_r,lr_weights, false, [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf])
 end
 
@@ -12,7 +12,7 @@ end
 function merge_clusters_to_splittable(cpl::cluster_parameters,cpr::cluster_parameters, α::Float32)
     suff_stats = aggregate_suff_stats(cpl.suff_statistics,cpr.suff_statistics)
     posterior_hyperparams = calc_posterior(cpl.hyperparams, suff_stats)
-    lr_weights = rand(Dirichlet([cpl.suff_statistics.N + (α / 2), cpr.suff_statistics.N + (α / 2)]))
+    lr_weights = rand(Dirichlet(Float64.([cpl.suff_statistics.N + (α / 2), cpr.suff_statistics.N + (α / 2)])))
     cp = cluster_parameters(cpl.hyperparams, cpl.distribution, suff_stats, posterior_hyperparams)
     return splittable_cluster_params(cp,cpl,cpr,lr_weights, false, [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf])
 end
@@ -46,7 +46,7 @@ function sample_cluster_params(params::splittable_cluster_params, α::Float32, f
     push!(points_count, params.cluster_params_l.suff_statistics.N)
     push!(points_count, params.cluster_params_r.suff_statistics.N)
     points_count .+= α / 2
-    params.lr_weights = rand(Dirichlet(points_count))
+    params.lr_weights = rand(Dirichlet(Float64.(points_count)))
 
     log_likihood_l = log_marginal_likelihood(params.cluster_params_l.hyperparams,params.cluster_params_l.posterior_hyperparams, params.cluster_params_l.suff_statistics)
     log_likihood_r = log_marginal_likelihood(params.cluster_params_r.hyperparams,params.cluster_params_r.posterior_hyperparams, params.cluster_params_r.suff_statistics)

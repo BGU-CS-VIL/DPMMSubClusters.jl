@@ -31,9 +31,10 @@ Use Julia's package manager:
 
 ## Usage
 
-This package is aimed for distributed parallel computing, note that for it to work properly you must use it with atleast one worker process. More workers, distributed across different machines, are encouraged for increased performance.
+This package is aimed for distributed parallel computing, while working with no workers is possible. Adding more workers, distributed across different machines, are encouraged for increased performance.
 
-Check your number of workers using `n(nworkers()== 0 ? procs() : workers())`, if needed, add using `addprocs(n)`, where `n` is the number of workers.
+It is recommended to use `BLAS.set_num_threads(1)`, when working with larger datasets increasing the amount of workers will do the trick, `BLAS` multi threading might disturb the multiprocessing, resulting in slower inference.
+
 For all the workers to recognize the package, you must start with `@everywhere using DPMMSubClusters`. If you require to set the seed (using the `seed` kwarg), add `@everywhere using Random` as well.
 
 The package currently contains priors for handling *Multinomial* or *Gaussian* mixture models.
@@ -44,13 +45,13 @@ While being very verstile in the setting and configuration, there are 2 modes wh
 In order to run in the basic mode, use the function:
 ```
 labels, clusters, weights = fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
 ```
 
 Or, if opting for the default Gaussian weak prior:
 ```
 labels, clusters, weights = fit(all_data::AbstractArray{Float64,2},α_param::Float64;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
 ```
 
 `data` should be of the shape `DxN` , `hyper_params` are one of the available hyper parameters.
@@ -60,6 +61,13 @@ Examples:
 [2d Gaussian with plotting](https://nbviewer.jupyter.org/github/dinarior/DPMMSubClusters.jl/blob/master/examples/2d_gaussian/gaussian_2d.ipynb).
 [Image Segmentation](https://nbviewer.jupyter.org/github/dinarior/DPMMSubClusters.jl/blob/master/examples/image_seg/dpgmm-superpixels.ipynb).
 
+Reducing the `burnout` will increase the speed and reduce stability, increasing the variance in the results.
+
+When supplied with `gt` kwarg, it will perform `NMI` and `Variation of Information` analysis on each iteration.
+
+The return values for the `fit` methods is:
+
+`labels, clusters, weights, iteration_time, nmi_history, likelihood_history, cluster_count_history`
 
 ### Advanced
 In this mode you are required to supply a params file, example for one is the file `global_params.jl`.

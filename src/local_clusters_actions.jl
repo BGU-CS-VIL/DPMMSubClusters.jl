@@ -408,7 +408,7 @@ function sample_clusters!(group::local_group, first::Bool)
         push!(points_count, cluster.points_count)
     end
     push!(points_count, group.model_hyperparams.α)
-    group.weights = rand(Dirichlet(points_count))[1:end-1]
+    group.weights = rand(Dirichlet(Float64.(points_count)))[1:end-1]
 end
 
 function create_thin_cluster_params(cluster::local_cluster)
