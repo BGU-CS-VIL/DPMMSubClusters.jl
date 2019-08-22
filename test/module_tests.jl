@@ -34,7 +34,7 @@ end
                Float32(5),
                Matrix{Float32}(I, 3, 3)*1)
 
-    dp = dp_parallel(x,hyper_params,Float32(1000000000000000000000.0), 100, 1)
+    dp = dp_parallel(x,hyper_params,Float32(1000000000000000000000.0), 100,1,nothing,true,false,15,labels)
     @test length(dp[1].group.local_clusters) > 1
 end
 

@@ -161,8 +161,8 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
         push!(cluster_count_history,length(dp_model.group.local_clusters))
         group_labels = Array(dp_model.group.labels)
         if ground_truth != nothing
-            push!(v_score_history, varinfo(Int(maximum(ground_truth)), Int.(ground_truth), length(unique(group_labels)),group_labels))
-            push!(nmi_score_history, mutualinfo(Int.(ground_truth),group_labels)[2])
+            push!(v_score_history, varinfo(Int.(ground_truth),group_labels))
+            push!(nmi_score_history, mutualinfo(Int.(ground_truth),group_labels,normed=true))
         else
             push!(v_score_history, "no gt")
             push!(nmi_score_history, "no gt")
