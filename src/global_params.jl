@@ -12,7 +12,6 @@ split_stop  = 0 #Stop split/merge moves at  iterations - split_stop
 
 random_seed = nothing #When nothing, a random seed will be used.
 
-use_smart_splits = true
 max_split_iter = 20
 burnout_period = 20
 
