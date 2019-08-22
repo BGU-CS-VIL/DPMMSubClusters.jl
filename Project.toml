@@ -1,10 +1,11 @@
 name = "DPMMSubClusters"
 uuid = "2841fd70-8698-11e9-176d-6dfa142d2ee7"
 authors = ["Or Dinari <dinari.or@gmail.com>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 CatViews = "81a5f4ea-a946-549a-aa7e-2a7f63a27d31"
+Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 DistributedArrays = "aaf54ef3-cdf8-58ed-94cc-d582ad619b94"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -16,6 +17,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+Clustering = "0.13.3"
 julia = "1"
 
 [extras]
