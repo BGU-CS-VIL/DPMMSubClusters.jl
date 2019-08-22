@@ -12,7 +12,7 @@ split_stop  = 10 #Stop split/merge moves at  iterations - split_stop
 
 total_dim = 2
 
-α = 100000.0
+α = Float32(100000.0)
 
 
 initial_clusters = 1
@@ -21,7 +21,7 @@ initial_clusters = 1
 use_dict_for_global = false
 
 
-hyper_params = multinomial_hyper(ones(100))
+hyper_params = multinomial_hyper(ones(Float32,100))
 
 #Saving specifics:
 enable_saving = true

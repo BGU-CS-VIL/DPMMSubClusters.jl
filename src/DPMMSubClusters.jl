@@ -31,6 +31,11 @@ include("global_params.jl")
 include("dp-parallel-sampling.jl")
 include("data_generators.jl")
 
+if length(procs()) == 1
+    new_procs = addprocs(1)
+end
+
+
 export generate_gaussian_data, generate_mnmm_data, dp_parallel_sampling, dp_parallel, run_model_from_checkpoint, save_model, calculate_posterior, fit, get_labels_histogram
 
 

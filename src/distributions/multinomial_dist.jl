@@ -2,7 +2,7 @@ using LinearAlgebra
 using Distributions
 
 struct multinomial_dist <: distibution_sample
-    α::AbstractArray{Float64,1}
+    α::AbstractArray{Float32,1}
 end
 
 

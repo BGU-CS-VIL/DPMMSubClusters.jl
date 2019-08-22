@@ -1,10 +1,10 @@
 struct multinomial_hyper <: distribution_hyper_params
-    α::AbstractArray{Float64,1}
+    α::AbstractArray{Float32,1}
 end
 
 mutable struct multinomial_sufficient_statistics <: sufficient_statistics
-    N::Float64
-    points_sum::AbstractArray{Float64,1}
+    N::Float32
+    points_sum::AbstractArray{Float32,1}
 end
 
 
@@ -19,7 +19,7 @@ function sample_distribution(hyperparams::multinomial_hyper)
     return multinomial_dist(log.(rand(Dirichlet(hyperparams.α))))
 end
 
-function create_sufficient_statistics(hyper::multinomial_hyper,posterior::multinomial_hyper,points::AbstractArray{Float64,2}, pts_to_group = 0)
+function create_sufficient_statistics(hyper::multinomial_hyper,posterior::multinomial_hyper,points::AbstractArray{Float32,2}, pts_to_group = 0)
     pts = copy(points)
     points_sum = sum(pts, dims = 2)[:]
     S = pts * pts'

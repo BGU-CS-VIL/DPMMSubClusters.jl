@@ -4,15 +4,15 @@ function init_model()
     end
     if use_verbose
         println("Loading and distributing data:")
-        @time data = distribute(load_data(data_path, prefix = data_prefix))
+        @time data = distribute(Float32.(load_data(data_path, prefix = data_prefix)))
     else
-        data = distribute(load_data(data_path, prefix = data_prefix))
+        data = distribute(Float32.(load_data(data_path, prefix = data_prefix)))
     end
     total_dim = size(data,2)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
     labels = distribute(rand(1:initial_clusters,(size(data,2))))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
-    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float64[])
+    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float32[])
     return dp_parallel_sampling(model_hyperparams,group)
 end
 
@@ -31,7 +31,7 @@ function init_model_from_data(all_data)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
     labels = distribute(rand(1:initial_clusters,(size(data,2))))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
-    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float64[])
+    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float32[])
     return dp_parallel_sampling(model_hyperparams,group)
 end
 
@@ -45,14 +45,16 @@ function init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_co
     broadcast_cluster_params([create_thin_cluster_params(x) for x in dp_model.group.local_clusters],[1.0])
 end
 
-function dp_parallel(all_data::AbstractArray{Float64,2},
+function dp_parallel(all_data::AbstractArray{Float32,2},
         local_hyper_params::distribution_hyper_params,
-        α_param::Float64,
+        α_param::Float32,
          iters::Int64 = 100,
          init_clusters::Int64 = 1,
          seed = nothing,
          verbose = true,
-         save_model = false)
+         save_model = false,
+         burnout = 15,
+         gt = nothing)
     global iterations = iters
     global random_seed = seed
     global hyper_params = local_hyper_params
@@ -60,6 +62,7 @@ function dp_parallel(all_data::AbstractArray{Float64,2},
     global α = α_param
     global use_verbose = verbose
     global should_save_model = save_model
+    global burnout_period = burnout
     dp_model = init_model_from_data(all_data)
     global leader_dict = get_node_leaders_dict()
     init_first_clusters!(dp_model, initial_clusters)
@@ -67,33 +70,54 @@ function dp_parallel(all_data::AbstractArray{Float64,2},
         println("Node Leaders:")
         println(leader_dict)
     end
+    global ground_truth = gt
     @eval @everywhere global hard_clustering = $hard_clustering
     return run_model(dp_model, 1)
 end
 
-function fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
-    dp_model = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose)
-    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
+function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
+        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
+        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
 
-function fit(all_data::AbstractArray{Float64,2},α_param::Float64;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false)
+function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
     data_dim = size(all_data,1)
-    cov_mat = Matrix{Float64}(I, data_dim, data_dim)
-    local_hyper_params = niw_hyperparams(1,zeros(data_dim),data_dim+3,cov_mat)
-    dp_model = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose)
-    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights
+    cov_mat = Matrix{Float32}(I, data_dim, data_dim)
+    local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
+    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
+    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
+fit(all_data::AbstractArray, α_param;
+        iters = 100, init_clusters = 1,
+        seed = nothing, verbose = true,
+        save_model = false,burnout = 20, gt = nothing) =
+    fit(Float32.(all_data),Float32(α_param),iters = Int64(iters),
+        init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
+        save_model = save_model, burnout = burnout, gt = gt)
 
-function dp_parallel(model_params::String; verbose = true, save_model = true)
+
+fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_param;
+        iters = 100, init_clusters::Number = 1,
+        seed = nothing, verbose = true,
+        save_model = false,burnout = 20, gt = nothing) =
+    fit(Float32.(all_data),local_hyper_params,Float32(α_param),iters = Int64(iters),
+        init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
+        save_model = save_model, burnout = burnout, gt = gt)
+
+
+
+function dp_parallel(model_params::String; verbose = true, save_model = true,burnout = 5, gt = nothing)
     include(model_params)
     global use_verbose = verbose
     dp_model = init_model()
     global leader_dict = get_node_leaders_dict()
     global should_save_model = save_model
+    global ground_truth = gt
+    global burnout_period = burnout
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
         println("Node Leaders:")
@@ -105,6 +129,19 @@ end
 
 function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
     start_time= time()
+    iter_count = []
+    liklihood_history = []
+    v_score_history = []
+    nmi_score_history = []
+    global ground_truth
+    cur_parr_count = 10
+    cluster_count_history = []
+
+    @sync for i in (nworkers()== 0 ? procs() : workers())
+        @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
+    end
+
+
     for i=first_iter:iterations
         # plot_group(dp_model.group)
         final = false
@@ -116,24 +153,43 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
             no_more_splits = true
         end
 
-        iter_time = time()
-
+        prev_time = time()
         group_step(dp_model.group, no_more_splits, final, i==1)
+        iter_time = time() - prev_time
+        push!(iter_count,iter_time)
+        push!(liklihood_history,calculate_posterior(dp_model))
+        push!(cluster_count_history,length(dp_model.group.local_clusters))
+        group_labels = Array(dp_model.group.labels)
+        if ground_truth != nothing
+            push!(v_score_history, varinfo(Int(maximum(ground_truth)), Int.(ground_truth), length(unique(group_labels)),group_labels))
+            push!(nmi_score_history, mutualinfo(Int.(ground_truth),group_labels)[2])
+        else
+            push!(v_score_history, "no gt")
+            push!(nmi_score_history, "no gt")
+        end
         if use_verbose
             println("Iteration: " * string(i) * " || Clusters count: " *
-                string(length(dp_model.group.local_clusters)) *
-                " || Log posterior: " * string(calculate_posterior(dp_model)) *
-                " || Iter Time:" * string(time() - iter_time) *
-                 " || Total time:" * string(time() - start_time + prev_time))
+                string(cluster_count_history[end]) *
+                " || Log posterior: " * string(liklihood_history[end]) *
+                " || Vi score: " * string(v_score_history[end]) *
+                " || NMI score: " * string(nmi_score_history[end]) *
+                " || Iter Time:" * string(iter_time) *
+                 " || Total time:" * string(sum(iter_count)))
+        end
+        if length(dp_model.group.local_clusters) > cur_parr_count
+            cur_parr_count += max(20,length(dp_model.group.local_clusters))
+            @sync for i in (nworkers()== 0 ? procs() : workers())
+                @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
+            end
         end
         if i % model_save_interval == 0 && should_save_model
             println("Saving Model:")
-            save_time = time()
+            # save_time = time()
             @time save_model(dp_model,save_path, save_file_prefix, i, time() - start_time, model_params)
-            start_time += time() - save_time
+            # start_time += time() - save_time
         end
     end
-    return dp_model
+    return dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
 
@@ -180,4 +236,9 @@ function calculate_posterior(model::dp_parallel_sampling)
         log_posterior += log(model.model_hyperparams.α) + lgamma(cluster.cluster_params.cluster_params.suff_statistics.N)
     end
     return log_posterior
+end
+
+
+function set_parr_worker(labels,cluster_count)
+    global glob_parr = zeros(Float32,size(localpart(labels),1),cluster_count)
 end

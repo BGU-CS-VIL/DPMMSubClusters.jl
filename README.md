@@ -33,7 +33,7 @@ Use Julia's package manager:
 
 This package is aimed for distributed parallel computing, note that for it to work properly you must use it with atleast one worker process. More workers, distributed across different machines, are encouraged for increased performance.
 
-Check your number of workers using `nworkers()`, if needed, add using `addprocs(n)`, where `n` is the number of workers.
+Check your number of workers using `n(nworkers()== 0 ? procs() : workers())`, if needed, add using `addprocs(n)`, where `n` is the number of workers.
 For all the workers to recognize the package, you must start with `@everywhere using DPMMSubClusters`. If you require to set the seed (using the `seed` kwarg), add `@everywhere using Random` as well.
 
 The package currently contains priors for handling *Multinomial* or *Gaussian* mixture models.

@@ -5,7 +5,7 @@ function create_first_local_cluster(group::local_group)
     cp = cluster_parameters(group.model_hyperparams.distribution_hyper_params, dist, suff, post)
     cpl = deepcopy(cp)
     cpr = deepcopy(cp)
-    splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,[-Inf,-Inf,-Inf,-Inf,-Inf])
+    splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,[-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf])
     cp.suff_statistics.N = size(group.points,2)
     cpl.suff_statistics.N = sum(group.labels_subcluster .== 1)
     cpl.suff_statistics.N = sum(group.labels_subcluster .== 2)
@@ -13,7 +13,7 @@ function create_first_local_cluster(group::local_group)
         cp.suff_statistics.N,
         cpl.suff_statistics.N,
         cpl.suff_statistics.N)
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i split_first_cluster_worker!(group)
     end
     return cluster
@@ -21,7 +21,7 @@ end
 
 
 function sample_sub_clusters!(group::local_group)
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_sub_clusters_worker!(group.points, group.labels, group.labels_subcluster)
     end
 end
@@ -40,12 +40,20 @@ function sample_sub_clusters_worker!(group_points, group_labels, group_labels_su
 end
 
 function create_subclusters_labels!(labels::AbstractArray{Int64,1},
-        points::AbstractArray{Float64,2},
+        points::AbstractArray{Float32,2},
         cluster_params::thin_cluster_params)
     if size(labels,1) == 0
         return
     end
-    parr = zeros(length(labels), 2)
+    # clusts_dist = [cluster_params.l_dist, cluster_params.r_dist]
+    # log_weights = log.(cluster_params.lr_weights)
+    # @inbounds for i=1:size(labels,1)
+    #     x = @view points[:,i]
+    #     probs = RestrictedClusterProbs(log_weights,clusts_dist,x)
+    #     labels[i] = sample(1:2, ProbabilityWeights(probs))
+    #     # println(labels[i])
+    # end
+    parr = zeros(Float32,length(labels), 2)
     log_likelihood!((@view parr[:,1]),points,cluster_params.l_dist)
     log_likelihood!((@view parr[:,2]),points,cluster_params.r_dist)
     parr[:,1] .+= log(cluster_params.lr_weights[1])
@@ -59,23 +67,45 @@ function sample_labels!(group::local_group, final::Bool)
 end
 
 function sample_labels!(labels::AbstractArray{Int64,1},
-        points::AbstractArray{Float64,2},
+        points::AbstractArray{Float32,2},
         final::Bool)
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_labels_worker!(labels,points,final)
     end
 end
 
+
+function RestrictedClusterProbs(logπs::AbstractVector{V}, clusters,
+                                    x::AbstractVector) where V<:Real
+    p = Array{V,1}(undef,length(clusters))
+    max = typemin(V)
+    for (j,c) in enumerate(values(clusters))
+        @inbounds s = p[j] = logπs[j] + logαpdf(c,x)
+        max = s>max ? s : max
+    end
+    pc = exp.(p .- max)
+    return pc ./ sum(pc)
+end
+
+
 function sample_labels_worker!(labels::AbstractArray{Int64,1},
-        points::AbstractArray{Float64,2},
+        points::AbstractArray{Float32,2},
         final::Bool)
     indices = localindices(points)[2]
     lbls = localpart(labels)
-    parr = zeros(length(indices), length(clusters_vector))
-
-    for (k,cluster) in enumerate(clusters_vector)
+    pts = localpart(points)
+    log_weights = log.(clusters_weights)
+    parr = zeros(Float32,length(indices), length(clusters_vector))
+    @inbounds for (k,cluster) in enumerate(clusters_vector)
         log_likelihood!(reshape((@view parr[:,k]),:,1), localpart(points),cluster.cluster_dist)
     end
+
+    # parr = zeros(Float32,length(indices), length(clusters_vector))
+    # newx = copy(localpart(points)')
+    # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
+    #
+    #
+    #
     for (k,v) in enumerate(clusters_weights)
         parr[:,k] .+= log(v)
     end
@@ -85,6 +115,17 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     else
         sample_log_cat_array!(lbls,parr)
     end
+
+    # clust_dists = [c.cluster_dist for c in clusters_vector]
+    #
+    # @inbounds for i=1:size(lbls,1)
+    #     x = @view pts[:,i]
+    #     probs = RestrictedClusterProbs(log_weights,clust_dists,x)
+    #     # println(probs)
+    #     lbls[i] = sample(1:length(clusters_vector), ProbabilityWeights(probs))
+    #     # println(lbls[i])
+    # end
+
 
 end
 
@@ -158,7 +199,7 @@ function create_suff_stats_dict_node_leader(group_pts, group_labels, group_subla
 end
 
 
-function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = true)
+function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = false)
     workers_suff_dict = Dict()
     if indices == nothing
         indices = collect(1:length(group.local_clusters))
@@ -173,7 +214,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
                 indices)
         end
     else
-        @sync for i in workers()
+        @sync for i in (nworkers()== 0 ? procs() : workers())
             workers_suff_dict[i] = @spawnat i create_suff_stats_dict_worker(group.points,
                 group.labels,
                 group.labels_subcluster,
@@ -214,15 +255,18 @@ end
 
 
 
-function split_cluster_local_worker!(group::local_group,indices::Vector{Int64}, new_indices::Vector{Int64})
-    labels = localpart(group.labels)
-    sub_labels = localpart(group.labels_subcluster)
-    pts = localpart(group.points)
+function split_cluster_local_worker!(labels, sub_labels, points,indices::Vector{Int64}, new_indices::Vector{Int64})
+    labels = localpart(labels)
+    sub_labels = localpart(sub_labels)
+    pts = localpart(points)
     for (i,index) in enumerate(indices)
         cluster_sub_labels = @view sub_labels[labels .== index]
         cluster_labels = @view labels[labels .== index]
+        cluster_points = @view pts[:,labels .== index]
         cluster_labels[cluster_sub_labels .== 2] .= new_indices[i]
+
         cluster_sub_labels .= rand(1:2,length(cluster_sub_labels))
+
     end
 end
 
@@ -264,8 +308,8 @@ function merge_clusters!(group::local_group,index_l::Int64, index_r::Int64)
 end
 
 
-function should_split_local!(should_split::AbstractArray{Float64,1},
-        cluster_params::splittable_cluster_params, α::Float64, final::Bool)
+function should_split_local!(should_split::AbstractArray{Float32,1},
+        cluster_params::splittable_cluster_params, α::Float32, final::Bool)
     cpl = cluster_params.cluster_params_l
     cpr = cluster_params.cluster_params_r
     cp = cluster_params.cluster_params
@@ -292,7 +336,7 @@ function should_split_local!(should_split::AbstractArray{Float64,1},
 end
 
 function check_and_split!(group::local_group, final::Bool)
-    split_arr= zeros(length(group.local_clusters))
+    split_arr= zeros(Float32,length(group.local_clusters))
     for (index,cluster) in enumerate(group.local_clusters)
         if cluster.cluster_params.splittable == true && cluster.cluster_params.cluster_params.suff_statistics.N > 1
             should_split_local!((@view split_arr[index,:]), cluster.cluster_params,
@@ -312,17 +356,18 @@ function check_and_split!(group::local_group, final::Bool)
             new_index += 1
         end
     end
+    all_indices = vcat(indices,new_indices)
     if length(indices) > 0
-        @sync for i in workers()
-            @spawnat i split_cluster_local_worker!(group,indices,new_indices)
+        @sync for i in (nworkers()== 0 ? procs() : workers())
+            @spawnat i split_cluster_local_worker!(group.labels,group.labels_subcluster,group.points,indices,new_indices)
         end
     end
-    return vcat(indices,new_indices)
+    return all_indices
 end
 
 
 function check_and_merge!(group::local_group, final::Bool)
-    mergable = zeros(1)
+    mergable = zeros(Float32,1)
     indices = Vector{Int64}()
     new_indices = Vector{Int64}()
     for i=1:length(group.local_clusters)
@@ -342,7 +387,7 @@ function check_and_merge!(group::local_group, final::Bool)
             mergable[1] = 0
         end
     end
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i merge_clusters_worker!(group,indices,new_indices)
     end
     return indices
@@ -351,7 +396,7 @@ end
 
 
 function sample_clusters!(group::local_group, first::Bool)
-    points_count = Vector{Float64}()
+    points_count = Vector{Float32}()
     local_workers = procs(1)[2:end]
     cluster_params_futures = Dict()
     for (i,cluster) in enumerate(group.local_clusters)
@@ -394,21 +439,21 @@ function remove_empty_clusters!(group::local_group)
             push!(new_vec,cluster)
         end
     end
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i remove_empty_clusters_worker!(group.labels, pts_count)
     end
     group.local_clusters = new_vec
 end
 
 
-function rand_subclusters_labels!(labels::AbstractArray{Int64,1})    #lr_arr = create_array(zeros(length(labels), 2))
+function rand_subclusters_labels!(labels::AbstractArray{Int64,1})    #lr_arr = create_array(zeros(Float32,length(labels), 2))
     if size(labels,1) == 0
         return
     end
     labels .= rand(1:2,size(labels,1))
 end
 
-function reset_bad_clusters_worker!(indices::Vector{Int64}, group_points::AbstractArray{Float64,2},group_labels::AbstractArray{Int64,1}, group_labels_subcluster::AbstractArray{Int64,1})
+function reset_bad_clusters_worker!(indices::Vector{Int64}, group_points::AbstractArray{Float32,2},group_labels::AbstractArray{Int64,1}, group_labels_subcluster::AbstractArray{Int64,1})
     labels = localpart(group_labels)
     sub_labels = localpart(group_labels_subcluster)
     pts = localpart(group_points)
@@ -420,9 +465,9 @@ end
 function reset_splitted_clusters!(group::local_group, bad_clusters::Vector{Int64})
 
     for i in bad_clusters
-        group.local_clusters[i].cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf]
+        group.local_clusters[i].cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf]
     end
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
     end
     update_suff_stats_posterior!(group,bad_clusters)
@@ -435,11 +480,11 @@ function reset_bad_clusters!(group::local_group)
         cr = c.cluster_params.cluster_params_r
         if cl.suff_statistics.N == 0 || cr.suff_statistics.N == 0
             push!(bad_clusters,i)
-            c.cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf]
+            c.cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf]
             c.cluster_params.splittable = false
         end
     end
-    @sync for i in workers()
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
     end
     update_suff_stats_posterior!(group,bad_clusters)
@@ -487,10 +532,10 @@ function group_step(group::local_group, no_more_splits::Bool, final::Bool,first:
     reset_bad_clusters!(group)
     if no_more_splits == false
         indices = []
-        @sync indices = check_and_split!(group, final)
+        indices = check_and_split!(group, final)
         update_suff_stats_posterior!(group, indices)
     end
-    @sync check_and_merge!(group, final)
+    check_and_merge!(group, final)
     remove_empty_clusters!(group)
-    return local_group_stats(group.labels, group.labels_subcluster, group.local_clusters)
+    return
 end
