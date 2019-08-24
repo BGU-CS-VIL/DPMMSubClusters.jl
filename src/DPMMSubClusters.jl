@@ -14,7 +14,7 @@ using JLD2
 using Clustering
 
 import Random:seed!
-import Distributions: fit
+
 
 include("ds.jl")
 

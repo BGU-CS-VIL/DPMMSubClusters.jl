@@ -1,7 +1,14 @@
 using LinearAlgebra
 using Distributions
 
-
+"""
+    mv_gaussian(μ::AbstractArray{Float32,1}
+        Σ::AbstractArray{Float32,2}
+        invΣ::AbstractArray{Float32,2}
+        logdetΣ::Float32
+        invChol::UpperTriangular)
+[Multivariate Normal Distribution](https://en.wikipedia.org/wiki/Multivariate_normal_distribution)
+"""
 struct mv_gaussian <: distibution_sample
     μ::AbstractArray{Float32,1}
     Σ::AbstractArray{Float32,2}

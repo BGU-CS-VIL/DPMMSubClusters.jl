@@ -1,3 +1,8 @@
+"""
+    multinomial_hyper(α::AbstractArray{Float32,1})
+
+[Dirichlet Distribution](https://en.wikipedia.org/wiki/Dirichlet_distribution)
+"""
 struct multinomial_hyper <: distribution_hyper_params
     α::AbstractArray{Float32,1}
 end

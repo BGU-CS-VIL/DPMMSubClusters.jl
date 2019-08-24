@@ -2,6 +2,20 @@ using NPZ
 using Distributions
 using LinearAlgebra
 
+"""
+    generate_gaussian_data(N::Int64, D::Int64, K::Int64,MixtureVar::Number)
+
+Generate `N` observations, generated from `K` `D` dimensions Gaussians, with the Gaussian means sampled from a `Normal` distribution with mean `0` and `MixtureVar` variance.
+
+Returns `(Samples, Labels, Clusters_means, Clusters_cov)`
+
+# Example
+```julia
+julia> x,y,clusters = generate_gaussian_data(10000,2,6,100.0)
+[3644, 2880, 119, 154, 33, 3170]
+...
+```
+"""
 function generate_gaussian_data(N::Int64, D::Int64, K::Int64,MixtureVar::Number)
 	x = randn(Float32,D,N)
 	tpi = rand(Dirichlet(ones(K)))
@@ -28,6 +42,20 @@ function generate_gaussian_data(N::Int64, D::Int64, K::Int64,MixtureVar::Number)
 end
 
 
+
+"""
+     generate_mnmm_data(N::Int64, D::Int64, K::Int64, trials::Int64)
+
+Generate `N` observations, generated from `K` `D` features Multinomial vectors, with `trials` draws from each vector.
+
+Returns `(Samples, Labels, Vectors)`
+
+# Example
+```julia
+julia> generate_mnmm_data(10000, 10, 5, 100)
+...
+```
+"""
 function generate_mnmm_data(N::Int64, D::Int64, K::Int64, trials::Int64)
 	clusters = zeros(Float64,D,K)
 	x = zeros(Float32,D,N)

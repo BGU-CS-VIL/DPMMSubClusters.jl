@@ -1,6 +1,10 @@
 using LinearAlgebra
 using Distributions
 
+"""
+    multinomial_hyper(α::AbstractArray{Float32,1})
+[Dirichlet Distribution](https://en.wikipedia.org/wiki/Dirichlet_distribution)
+"""
 struct multinomial_dist <: distibution_sample
     α::AbstractArray{Float32,1}
 end

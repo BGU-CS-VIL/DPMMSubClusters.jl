@@ -1,3 +1,8 @@
+"""
+    niw_hyperparams(κ::Float32, m::AbstractArray{Float32}, ν::Float32, ψ::AbstractArray{Float32})
+    
+[Normal Inverse Wishart](https://en.wikipedia.org/wiki/Normal-inverse-Wishart_distribution)
+"""
 struct niw_hyperparams <: distribution_hyper_params
     κ::Float32
     m::AbstractArray{Float32}

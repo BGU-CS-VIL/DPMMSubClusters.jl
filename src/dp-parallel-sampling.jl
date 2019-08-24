@@ -1,3 +1,11 @@
+"""
+    init_model()
+
+Initialize the model, loading the data from external `npy` files, specified in the params file.
+All prior data as been included previously, and is globaly accessed by the function.
+
+Returns an `dp_parallel_sampling` (e.g. the main data structure) with the configured parameters and data.
+"""
 function init_model()
     if random_seed != nothing
         @eval @everywhere seed!($random_seed)
@@ -16,6 +24,14 @@ function init_model()
     return dp_parallel_sampling(model_hyperparams,group)
 end
 
+"""
+    init_model(all_data)
+
+Initialize the model, from `all_data`, should be `Dimensions X Samples`, type `Float32`
+All prior data as been included previously, and is globaly accessed by the function.
+
+Returns an `dp_parallel_sampling` (e.g. the main data structure) with the configured parameters and data.
+"""
 function init_model_from_data(all_data)
     if random_seed != nothing
         @eval @everywhere Random.seed!($random_seed)
@@ -35,7 +51,13 @@ function init_model_from_data(all_data)
     return dp_parallel_sampling(model_hyperparams,group)
 end
 
+"""
+    init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_count::Int64))
 
+Initialize the first clusters in the model, according to the number defined by initial_cluster_count
+
+Mutates the model.
+"""
 function init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_count::Int64)
     for i=1:initial_cluster_count
         push!(dp_model.group.local_clusters, create_first_local_cluster(dp_model.group))
@@ -45,6 +67,40 @@ function init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_co
     broadcast_cluster_params([create_thin_cluster_params(x) for x in dp_model.group.local_clusters],[1.0])
 end
 
+
+"""
+    dp_parallel(all_data::AbstractArray{Float32,2},
+           local_hyper_params::distribution_hyper_params,
+           α_param::Float32,
+            iters::Int64 = 100,
+            init_clusters::Int64 = 1,
+            seed = nothing,
+            verbose = true,
+            save_model = false,
+            burnout = 15,
+            gt = nothing)
+
+Run the model.
+# Args and Kwargs
+ - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
+ - `local_hyper_params::distribution_hyper_params` the prior hyperparams
+ - `α_param::Float32` the concetration parameter
+ - `iters::Int64` number of iterations to run the model
+ - `init_clusters::Int64` number of initial clusters
+ - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
+ - `verbose` will perform prints on every iteration.
+ - `save_model` will save a checkpoint every 25 iterations.
+ - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
+ - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+
+# Return values
+dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
+ - `dp_model` The DPMM model inferred
+ - `iter_count` Timing for each iteration
+ - `nmi_score_history` NMI score per iteration (if gt suppled)
+ - `likelihood_history` Log likelihood per iteration.
+ - `cluster_count_history` Cluster counts per iteration.
+"""
 function dp_parallel(all_data::AbstractArray{Float32,2},
         local_hyper_params::distribution_hyper_params,
         α_param::Float32,
@@ -75,13 +131,107 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
     return run_model(dp_model, 1)
 end
 
+"""
+    fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
+            iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
+
+Run the model (basic mode).
+# Args and Kwargs
+ - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
+ - `local_hyper_params::distribution_hyper_params` the prior hyperparams
+ - `α_param::Float32` the concetration parameter
+ - `iters::Int64` number of iterations to run the model
+ - `init_clusters::Int64` number of initial clusters
+ - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
+ - `verbose` will perform prints on every iteration.
+ - `save_model` will save a checkpoint every 25 iterations.
+ - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
+ - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+
+# Return Values
+ - `labels` Labels assignments
+ - `clusters` Cluster parameters
+ - `weights` The cluster weights, does not sum to `1`, but to `1` minus the weight of all uninstanistaed clusters.
+ - `iter_count` Timing for each iteration
+ - `nmi_score_history` NMI score per iteration (if gt suppled)
+ - `likelihood_history` Log likelihood per iteration.
+ - `cluster_count_history` Cluster counts per iteration.
+
+# Example:
+```julia
+julia> x,y,clusters = generate_gaussian_data(10000,2,6,100.0)
+...
+
+julia> hyper_params = DPMMSubClusters.niw_hyperparams(1.0,
+                  zeros(2),
+                  5,
+                  [1 0;0 1])
+DPMMSubClusters.niw_hyperparams(1.0f0, Float32[0.0, 0.0], 5.0f0, Float32[1.0 0.0; 0.0 1.0])
+
+julia> ret_values= fit(x,hyper_params,10.0, iters = 100, verbose=false)
+
+...
+
+julia> unique(ret_values[1])
+6-element Array{Int64,1}:
+ 3
+ 6
+ 1
+ 2
+ 5
+ 4
+```
+"""
 function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
         dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
         return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
+"""
+    fit(all_data::AbstractArray{Float32,2},α_param::Float32;
+            iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
 
+Run the model (basic mode) with default `NIW` prior.
+# Args and Kwargs
+ - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
+ - `α_param::Float32` the concetration parameter
+ - `iters::Int64` number of iterations to run the model
+ - `init_clusters::Int64` number of initial clusters
+ - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
+ - `verbose` will perform prints on every iteration.
+ - `save_model` will save a checkpoint every 25 iterations.
+ - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
+ - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+
+# Return Values
+ - `labels` Labels assignments
+ - `clusters` Cluster parameters
+ - `weights` The cluster weights, does not sum to `1`, but to `1` minus the weight of all uninstanistaed clusters.
+ - `iter_count` Timing for each iteration
+ - `nmi_score_history` NMI score per iteration (if gt suppled)
+ - `likelihood_history` Log likelihood per iteration.
+ - `cluster_count_history` Cluster counts per iteration.
+
+# Example:
+```julia
+julia> x,y,clusters = generate_gaussian_data(10000,2,6,100.0)
+...
+
+julia> ret_values= fit(x,10.0, iters = 100, verbose=false)
+
+...
+
+julia> unique(ret_values[1])
+6-element Array{Int64,1}:
+ 3
+ 6
+ 1
+ 2
+ 5
+ 4
+```
+"""
 function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
     data_dim = size(all_data,1)
@@ -99,7 +249,6 @@ fit(all_data::AbstractArray, α_param;
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
         save_model = save_model, burnout = burnout, gt = gt)
 
-
 fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_param;
         iters = 100, init_clusters::Number = 1,
         seed = nothing, verbose = true,
@@ -110,6 +259,26 @@ fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_par
 
 
 
+
+"""
+    dp_parallel(model_params::String; verbose = true, save_model = true,burnout = 5, gt = nothing)
+
+Run the model in advanced mode.
+# Args and Kwargs
+ - `model_params::String` A path to a parameters file (see below)
+ - `verbose` will perform prints on every iteration.
+ - `save_model` will save a checkpoint every `X` iterations, where `X` is specified in the parameter file.
+ - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
+ - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+
+# Return values
+dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
+ - `dp_model` The DPMM model inferred
+ - `iter_count` Timing for each iteration
+ - `nmi_score_history` NMI score per iteration (if gt suppled)
+ - `likelihood_history` Log likelihood per iteration.
+ - `cluster_count_history` Cluster counts per iteration.
+"""
 function dp_parallel(model_params::String; verbose = true, save_model = true,burnout = 5, gt = nothing)
     include(model_params)
     global use_verbose = verbose
@@ -193,7 +362,27 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
 end
 
 
-#Running a saved model will results in added time, and might bug the random seed.
+"""
+    run_model_from_checkpoint(filename)
+
+Run the model from a checkpoint created by it, `filename` is the path to the checkpoint.
+Only to be run when using the advanced mode, note that the data must be in the same path as previously.
+
+# Example:
+```julia
+julia> dp = run_model_from_checkpoint("checkpoint__50.jld2")
+Loading Model:
+  1.073261 seconds (2.27 M allocations: 113.221 MiB, 2.60% gc time)
+Including params
+Loading data:
+  0.000881 seconds (10.02 k allocations: 378.313 KiB)
+Creating model:
+Node Leaders:
+Dict{Any,Any}(2=>Any[2, 3])
+Running model:
+...
+```
+"""
 function run_model_from_checkpoint(filename)
     println("Loading Model:")
     @time @load filename group hyperparams iter total_time global_params
