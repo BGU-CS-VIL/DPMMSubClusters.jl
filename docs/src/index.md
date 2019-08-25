@@ -2,7 +2,7 @@
 
 Package provides an easy, fast and scalable way to perform inference in Dirichlet Process Mixture Models.
 
-(https://github.com/dinarior/DPMMSubClusters.jl)
+[https://github.com/dinarior/DPMMSubClusters.jl](https://github.com/dinarior/DPMMSubClusters.jl)
 
 Developed from the code of:
 
