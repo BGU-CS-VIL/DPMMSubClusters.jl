@@ -414,7 +414,7 @@ end
 
 
 function calculate_posterior(model::dp_parallel_sampling)
-    log_posterior = log(model.model_hyperparams.α) - lgamma(size(model.group.points,2))
+    log_posterior = lgamma(model.model_hyperparams.α) - lgamma(size(model.group.points,2)+model.model_hyperparams.α)
     for cluster in model.group.local_clusters
         if cluster.cluster_params.cluster_params.suff_statistics.N == 0
             continue
