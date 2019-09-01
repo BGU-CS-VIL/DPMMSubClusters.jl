@@ -25,10 +25,11 @@ Examples:
 If you use this package in your research, please cite the following:
 
 ```
-@inproceedings{Dinari:CCGrid:2019,
-  title={Distributed {MCMC} Inference in {Dirichlet} Process Mixture Models Using {Julia}},
-  author={Dinari, Or and Angel, Yu and Freifeld, Oren and Fisher III, John W},
-  booktitle={International Symposium on Cluster, Cloud and Grid Computing (CCGRID) Workshop on High Performance Machine Learning Workshop},
+@inproceedings{dinari2019distributed,
+  title={Distributed MCMC Inference in Dirichlet Process Mixture Models Using Julia},
+  author={Dinari, Or and Yu, Angel and Freifeld, Oren and Fisher III, John W},
+  booktitle={2019 19th IEEE/ACM International Symposium on Cluster, Cloud and Grid Computing (CCGRID)},
+  pages={518--525},
   year={2019}
 }
 ```
