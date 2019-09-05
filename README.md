@@ -1,7 +1,7 @@
 [![Build Status](https://api.travis-ci.com/dinarior/DPMMSubClusters.jl.svg?branch=master)](https://travis-ci.com/dinarior/DPMMSubClusters.jl)
 [![Coverage Status](https://coveralls.io/repos/github/dinarior/DPMMSubClusters.jl/badge.svg?branch=master)](https://coveralls.io/github/dinarior/DPMMSubClusters.jl?branch=master)
 [![codecov](https://codecov.io/gh/dinarior/DPMMSubClusters.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/dinarior/DPMMSubClusters.jl)
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://dinarior.github.io/DPMMSubClusters.jl/stable/)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://bgu-cs-vil.github.io/DPMMSubClusters.jl/stable/)
 
 
 # DPMMSubClusters.jl
@@ -11,7 +11,7 @@ This repository is a *Julia* package which holds the code for our paper **Distri
 </p>
 
 
-[Docs are now available](https://dinarior.github.io/DPMMSubClusters.jl/stable/)
+[Docs are now available](https://bgu-cs-vil.github.io/DPMMSubClusters.jl/stable/)
 
 ## Requirements
 This package was developed and tested on *Julia 1.0.3*, prior versions will not work.
