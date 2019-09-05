@@ -10,6 +10,7 @@ This repository is a *Julia* package which holds the code for our paper **Distri
 <img src="https://www.cs.bgu.ac.il/~dinari/images/clusters_low_slow.gif" alt="DPGMM SubClusters 2d example">
 </p>
 
+
 [Docs are now available](https://dinarior.github.io/DPMMSubClusters.jl/stable/)
 
 ## Requirements
