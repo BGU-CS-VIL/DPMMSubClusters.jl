@@ -21,7 +21,7 @@ end
 
 
 function sample_sub_clusters!(group::local_group)
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_sub_clusters_worker!(group.points, group.labels, group.labels_subcluster)
     end
 end
@@ -69,7 +69,7 @@ end
 function sample_labels!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
         final::Bool)
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_labels_worker!(labels,points,final)
     end
 end
@@ -170,7 +170,7 @@ function create_suff_stats_dict_node_leader(group_pts, group_labels, group_subla
     if indices == nothing
         indices = collect(1:length(clusters_vector))
     end
-    @sync for i in proc_ids
+    for i in proc_ids
         workers_suff_dict[i] = remotecall(create_suff_stats_dict_worker,i,group_pts,
             group_labels,
             group_sublabels,
@@ -205,7 +205,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
         indices = collect(1:length(group.local_clusters))
     end
     if use_leader
-        @sync for i in collect(keys(leader_dict))
+        for i in collect(keys(leader_dict))
             workers_suff_dict[i] = remotecall(create_suff_stats_dict_node_leader, i ,group.points,
                 group.labels,
                 group.labels_subcluster,
@@ -214,7 +214,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
                 indices)
         end
     else
-        @sync for i in (nworkers()== 0 ? procs() : workers())
+        for i in (nworkers()== 0 ? procs() : workers())
             workers_suff_dict[i] = @spawnat i create_suff_stats_dict_worker(group.points,
                 group.labels,
                 group.labels_subcluster,
