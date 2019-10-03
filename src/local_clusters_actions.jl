@@ -167,15 +167,18 @@ end
 function create_suff_stats_dict_node_leader(group_pts, group_labels, group_sublabels, hyper_params, proc_ids, indices)
     leader_suff_dict = Dict()
     workers_suff_dict = Dict()
+    workers_suff_dict_fetched = Dict()
     if indices == nothing
         indices = collect(1:length(clusters_vector))
     end
-    for i in proc_ids
-        workers_suff_dict[i] = remotecall(create_suff_stats_dict_worker,i,group_pts,
-            group_labels,
-            group_sublabels,
-            hyper_params,
-            indices)
+    @sync begin
+        for i in proc_ids
+            @async workers_suff_dict_fetched[i] = remotecall_fetch(create_suff_stats_dict_worker,i,group_pts,
+                group_labels,
+                group_sublabels,
+                hyper_params,
+                indices)
+        end
     end
     suff_stats_vectors = [[] for i=1:length(indices)]
     cluster_to_index = Dict([indices[i]=>i for i=1:length(indices)])
@@ -201,30 +204,40 @@ end
 
 function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = false)
     workers_suff_dict = Dict()
+    workers_suff_dict_fetched = Dict()
     if indices == nothing
         indices = collect(1:length(group.local_clusters))
     end
     if use_leader
-        for i in collect(keys(leader_dict))
-            workers_suff_dict[i] = remotecall(create_suff_stats_dict_node_leader, i ,group.points,
+        @sync begin
+            for i in collect(keys(leader_dict))
+            @async workers_suff_dict_fetched[i] = remotecall_fetch(create_suff_stats_dict_node_leader, i ,group.points,
                 group.labels,
                 group.labels_subcluster,
                 group.model_hyperparams.distribution_hyper_params,
                 leader_dict[i],
                 indices)
+            end
         end
     else
-        for i in (nworkers()== 0 ? procs() : workers())
-            workers_suff_dict[i] = @spawnat i create_suff_stats_dict_worker(group.points,
+        @sync begin
+            for i in (nworkers()== 0 ? procs() : workers())
+            # workers_suff_dict[i] = @spawnat i create_suff_stats_dict_worker(group.points,
+            #     group.labels,
+            #     group.labels_subcluster,
+            #     group.model_hyperparams.distribution_hyper_params,
+            #     indices)
+            @async workers_suff_dict_fetched[i] = remotecall_fetch(create_suff_stats_dict_worker, i ,group.points,
                 group.labels,
                 group.labels_subcluster,
                 group.model_hyperparams.distribution_hyper_params,
                 indices)
+            end
         end
     end
     suff_stats_vectors = [[] for i=1:length(indices)]
     cluster_to_index = Dict([indices[i]=>i for i=1:length(indices)])
-    workers_suff_dict_fetched = Dict([k=>fetch(v) for (k,v) in workers_suff_dict])
+    # workers_suff_dict_fetched = Dict([k=>fetch(v) for (k,v) in workers_suff_dict])
     for (k,v) in workers_suff_dict_fetched
         for (cluster, suff) in v
             push!(suff_stats_vectors[cluster_to_index[cluster]], suff)
