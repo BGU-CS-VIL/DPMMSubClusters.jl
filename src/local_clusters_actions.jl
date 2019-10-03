@@ -96,10 +96,11 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     pts = localpart(points)
     log_weights = log.(clusters_weights)
     parr = zeros(Float32,length(indices), length(clusters_vector))
-    @inbounds for (k,cluster) in enumerate(clusters_vector)
-        log_likelihood!(reshape((@view parr[:,k]),:,1), localpart(points),cluster.cluster_dist)
+    tic = time()
+    for (k,cluster) in enumerate(clusters_vector)
+        log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
-
+    println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
     # parr = zeros(Float32,length(indices), length(clusters_vector))
     # newx = copy(localpart(points)')
     # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
@@ -202,7 +203,7 @@ function create_suff_stats_dict_node_leader(group_pts, group_labels, group_subla
 end
 
 
-function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = false)
+function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = true)
     workers_suff_dict = Dict()
     workers_suff_dict_fetched = Dict()
     if indices == nothing
@@ -211,7 +212,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
     if use_leader
         @sync begin
             for i in collect(keys(leader_dict))
-            @async workers_suff_dict_fetched[i] = remotecall_fetch(create_suff_stats_dict_node_leader, i ,group.points,
+            @async @time workers_suff_dict_fetched[i] = remotecall_fetch(create_suff_stats_dict_node_leader, i ,group.points,
                 group.labels,
                 group.labels_subcluster,
                 group.model_hyperparams.distribution_hyper_params,
