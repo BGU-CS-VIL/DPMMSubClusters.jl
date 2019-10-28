@@ -11,9 +11,9 @@ CurrentModule = DPMMSubClusters
 ```
 
 ```@docs
-fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
+fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
-fit(all_data::AbstractArray{Float32,2},α_param::Float32;
+fit(all_data::AbstractArray{Float64,2},α_param::Float64;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
 ```
 
@@ -57,9 +57,9 @@ burnout_period = 20
 #Model hyperparams
 α = 10.0 #Concetration Parameter
 hyper_params = DPMMSubClusters.niw_hyperparams(1.0,
-    zeros(Float32,2),
+    zeros(Float64,2),
     5,
-    Matrix{Float32}(I, 2, 2)*1.0)
+    Matrix{Float64}(I, 2, 2)*1.0)
 
 
 

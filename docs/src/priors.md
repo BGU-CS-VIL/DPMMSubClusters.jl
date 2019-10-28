@@ -32,7 +32,7 @@ struct prior_hyper_params <: distribution_hyper_params
 end
 
 mutable struct prior_sufficient_statistics <: sufficient_statistics
-    N::Float32 #Must have this, even if not needed!
+    N::Float64 #Must have this, even if not needed!
     ...
 end
 
@@ -48,7 +48,7 @@ function sample_distribution(hyperparams::prior_hyper_params)
     return new_dist(...)
 end
 
-function create_sufficient_statistics(hyper::prior_hyper_params,posterior::prior_hyper_params,points::AbstractArray{Float32,2}, pts_to_group = 0)
+function create_sufficient_statistics(hyper::prior_hyper_params,posterior::prior_hyper_params,points::AbstractArray{Float64,2}, pts_to_group = 0)
     pts = copy(points)
     ...
     return prior_sufficient_statistics(size(points,2),...)

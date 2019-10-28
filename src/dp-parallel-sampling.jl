@@ -12,22 +12,22 @@ function init_model()
     end
     if use_verbose
         println("Loading and distributing data:")
-        @time data = distribute(Float32.(load_data(data_path, prefix = data_prefix)))
+        @time data = distribute(Float64.(load_data(data_path, prefix = data_prefix)))
     else
-        data = distribute(Float32.(load_data(data_path, prefix = data_prefix)))
+        data = distribute(Float64.(load_data(data_path, prefix = data_prefix)))
     end
     total_dim = size(data,2)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
     labels = distribute(rand(1:initial_clusters,(size(data,2))))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
-    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float32[])
+    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float64[])
     return dp_parallel_sampling(model_hyperparams,group)
 end
 
 """
     init_model(all_data)
 
-Initialize the model, from `all_data`, should be `Dimensions X Samples`, type `Float32`
+Initialize the model, from `all_data`, should be `Dimensions X Samples`, type `Float64`
 All prior data as been included previously, and is globaly accessed by the function.
 
 Returns an `dp_parallel_sampling` (e.g. the main data structure) with the configured parameters and data.
@@ -47,7 +47,7 @@ function init_model_from_data(all_data)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
     labels = distribute(rand(1:initial_clusters,(size(data,2))))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
-    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float32[])
+    group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float64[])
     return dp_parallel_sampling(model_hyperparams,group)
 end
 
@@ -69,9 +69,9 @@ end
 
 
 """
-    dp_parallel(all_data::AbstractArray{Float32,2},
+    dp_parallel(all_data::AbstractArray{Float64,2},
            local_hyper_params::distribution_hyper_params,
-           α_param::Float32,
+           α_param::Float64,
             iters::Int64 = 100,
             init_clusters::Int64 = 1,
             seed = nothing,
@@ -82,9 +82,9 @@ end
 
 Run the model.
 # Args and Kwargs
- - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
+ - `all_data::AbstractArray{Float64,2}` a `DxN` array containing the data
  - `local_hyper_params::distribution_hyper_params` the prior hyperparams
- - `α_param::Float32` the concetration parameter
+ - `α_param::Float64` the concetration parameter
  - `iters::Int64` number of iterations to run the model
  - `init_clusters::Int64` number of initial clusters
  - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
@@ -101,9 +101,9 @@ dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_histo
  - `likelihood_history` Log likelihood per iteration.
  - `cluster_count_history` Cluster counts per iteration.
 """
-function dp_parallel(all_data::AbstractArray{Float32,2},
+function dp_parallel(all_data::AbstractArray{Float64,2},
         local_hyper_params::distribution_hyper_params,
-        α_param::Float32,
+        α_param::Float64,
          iters::Int64 = 100,
          init_clusters::Int64 = 1,
          seed = nothing,
@@ -132,14 +132,14 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
 end
 
 """
-    fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
+    fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
             iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
 
 Run the model (basic mode).
 # Args and Kwargs
- - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
+ - `all_data::AbstractArray{Float64,2}` a `DxN` array containing the data
  - `local_hyper_params::distribution_hyper_params` the prior hyperparams
- - `α_param::Float32` the concetration parameter
+ - `α_param::Float64` the concetration parameter
  - `iters::Int64` number of iterations to run the model
  - `init_clusters::Int64` number of initial clusters
  - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
@@ -166,7 +166,7 @@ julia> hyper_params = DPMMSubClusters.niw_hyperparams(1.0,
                   zeros(2),
                   5,
                   [1 0;0 1])
-DPMMSubClusters.niw_hyperparams(1.0f0, Float32[0.0, 0.0], 5.0f0, Float32[1.0 0.0; 0.0 1.0])
+DPMMSubClusters.niw_hyperparams(1.0f0, Float64[0.0, 0.0], 5.0f0, Float64[1.0 0.0; 0.0 1.0])
 
 julia> ret_values= fit(x,hyper_params,10.0, iters = 100, verbose=false)
 
@@ -182,20 +182,20 @@ julia> unique(ret_values[1])
  4
 ```
 """
-function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
+function fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
         dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
         return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
 """
-    fit(all_data::AbstractArray{Float32,2},α_param::Float32;
+    fit(all_data::AbstractArray{Float64,2},α_param::Float64;
             iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
 
 Run the model (basic mode) with default `NIW` prior.
 # Args and Kwargs
- - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
- - `α_param::Float32` the concetration parameter
+ - `all_data::AbstractArray{Float64,2}` a `DxN` array containing the data
+ - `α_param::Float64` the concetration parameter
  - `iters::Int64` number of iterations to run the model
  - `init_clusters::Int64` number of initial clusters
  - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
@@ -232,11 +232,11 @@ julia> unique(ret_values[1])
  4
 ```
 """
-function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
+function fit(all_data::AbstractArray{Float64,2},α_param::Float64;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
     data_dim = size(all_data,1)
-    cov_mat = Matrix{Float32}(I, data_dim, data_dim)
-    local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
+    cov_mat = Matrix{Float64}(I, data_dim, data_dim)
+    local_hyper_params = niw_hyperparams(1,zeros(Float64,data_dim),data_dim+3,cov_mat)
     dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
     return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
@@ -245,7 +245,7 @@ fit(all_data::AbstractArray, α_param;
         iters = 100, init_clusters = 1,
         seed = nothing, verbose = true,
         save_model = false,burnout = 20, gt = nothing) =
-    fit(Float32.(all_data),Float32(α_param),iters = Int64(iters),
+    fit(Float64.(all_data),Float64(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
         save_model = save_model, burnout = burnout, gt = gt)
 
@@ -253,7 +253,7 @@ fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_par
         iters = 100, init_clusters::Number = 1,
         seed = nothing, verbose = true,
         save_model = false,burnout = 20, gt = nothing) =
-    fit(Float32.(all_data),local_hyper_params,Float32(α_param),iters = Int64(iters),
+    fit(Float64.(all_data),local_hyper_params,Float64(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
         save_model = save_model, burnout = burnout, gt = gt)
 
@@ -429,5 +429,5 @@ end
 
 
 function set_parr_worker(labels,cluster_count)
-    global glob_parr = zeros(Float32,size(localpart(labels),1),cluster_count)
+    global glob_parr = zeros(Float64,size(localpart(labels),1),cluster_count)
 end

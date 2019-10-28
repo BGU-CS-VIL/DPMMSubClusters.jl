@@ -18,9 +18,9 @@ burnout_period = 20
 #Model hyperparams
 α = 10.0 #Concetration Parameter
 hyper_params = niw_hyperparams(1.0,
-    zeros(Float32,2),
+    zeros(Float64,2),
     5,
-    Matrix{Float32}(I, 2, 2)*1.0)
+    Matrix{Float64}(I, 2, 2)*1.0)
 
 
 

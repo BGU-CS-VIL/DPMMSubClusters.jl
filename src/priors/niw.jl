@@ -1,19 +1,19 @@
 """
-    niw_hyperparams(κ::Float32, m::AbstractArray{Float32}, ν::Float32, ψ::AbstractArray{Float32})
+    niw_hyperparams(κ::Float64, m::AbstractArray{Float64}, ν::Float64, ψ::AbstractArray{Float64})
 
 [Normal Inverse Wishart](https://en.wikipedia.org/wiki/Normal-inverse-Wishart_distribution)
 """
 struct niw_hyperparams <: distribution_hyper_params
-    κ::Float32
-    m::AbstractArray{Float32}
-    ν::Float32
-    ψ::AbstractArray{Float32}
+    κ::Float64
+    m::AbstractArray{Float64}
+    ν::Float64
+    ψ::AbstractArray{Float64}
 end
 
 mutable struct niw_sufficient_statistics <: sufficient_statistics
-    N::Float32
-    points_sum::AbstractArray{Float32,1}
-    S::AbstractArray{Float32,2}
+    N::Float64
+    points_sum::AbstractArray{Float64,1}
+    S::AbstractArray{Float64,2}
 end
 
 
@@ -38,9 +38,9 @@ function sample_distribution(hyperparams::niw_hyperparams)
     return mv_gaussian(μ,Σ,invΣ,logdet(Σ),chol.U)
 end
 
-function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hyperparams,points::AbstractArray{Float32,2}, pts_to_group = 0)
+function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hyperparams,points::AbstractArray{Float64,2}, pts_to_group = 0)
     if size(points,2) == 0
-        return niw_sufficient_statistics(size(points,2),zeros(Float32,length(hyper.m)),zeros(Float32,length(hyper.m),length(hyper.m)))
+        return niw_sufficient_statistics(size(points,2),zeros(Float64,length(hyper.m)),zeros(Float64,length(hyper.m),length(hyper.m)))
     end
     pts = copy(points)
     points_sum = sum(pts, dims = 2)[:]
