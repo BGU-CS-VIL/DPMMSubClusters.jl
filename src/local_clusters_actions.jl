@@ -69,7 +69,7 @@ end
 function sample_labels!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
         final::Bool)
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_labels_worker!(labels,points,final)
     end
 end
@@ -359,7 +359,7 @@ function check_and_split!(group::local_group, final::Bool)
     end
     all_indices = vcat(indices,new_indices)
     if length(indices) > 0
-        @sync for i in (nworkers()== 0 ? procs() : workers())
+        for i in (nworkers()== 0 ? procs() : workers())
             @spawnat i split_cluster_local_worker!(group.labels,group.labels_subcluster,group.points,indices,new_indices)
         end
     end
@@ -388,7 +388,7 @@ function check_and_merge!(group::local_group, final::Bool)
             mergable[1] = 0
         end
     end
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i merge_clusters_worker!(group,indices,new_indices)
     end
     return indices
@@ -468,7 +468,7 @@ function reset_splitted_clusters!(group::local_group, bad_clusters::Vector{Int64
     for i in bad_clusters
         group.local_clusters[i].cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf]
     end
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
     end
     update_suff_stats_posterior!(group,bad_clusters)
