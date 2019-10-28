@@ -1,5 +1,5 @@
 function create_data_for_test()
-    data = zeros(Float64,2,1000)
+    data = zeros(Float32,2,1000)
     data[:,1:250] .= [-1,-1]
     data[:,251:500] .= [-1,1]
     data[:,501:750] .= [1,-1]
@@ -29,12 +29,12 @@ end
     @everywhere Random.seed!(12345)
     x,labels,clusters = generate_gaussian_data(10^5,3,10,100.0)
 
-    hyper_params = DPMMSubClusters.niw_hyperparams(Float64(1.0),
-               zeros(Float64,3),
-               Float64(5),
-               Matrix{Float64}(I, 3, 3)*1)
+    hyper_params = DPMMSubClusters.niw_hyperparams(Float32(1.0),
+               zeros(Float32,3),
+               Float32(5),
+               Matrix{Float32}(I, 3, 3)*1)
 
-    dp = dp_parallel(x,hyper_params,Float64(1000000000000000000000.0), 100,1,nothing,true,false,15,labels)
+    dp = dp_parallel(x,hyper_params,Float32(1000000000000000000000.0), 100,1,nothing,true,false,15,labels)
     @test length(dp[1].group.local_clusters) > 1
 end
 

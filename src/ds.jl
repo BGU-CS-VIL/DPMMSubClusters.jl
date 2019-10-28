@@ -6,7 +6,7 @@ import Base.copy
 
 struct model_hyper_params
     distribution_hyper_params::distribution_hyper_params
-    α::Float64
+    α::Float32
     total_dim::Int64
 end
 
@@ -21,16 +21,16 @@ mutable struct splittable_cluster_params
     cluster_params::cluster_parameters
     cluster_params_l::cluster_parameters
     cluster_params_r::cluster_parameters
-    lr_weights::AbstractArray{Float64, 1}
+    lr_weights::AbstractArray{Float32, 1}
     splittable::Bool
-    logsublikelihood_hist::AbstractArray{Float64,1}
+    logsublikelihood_hist::AbstractArray{Float32,1}
 end
 
 mutable struct thin_cluster_params{T <: distibution_sample}
     cluster_dist::T
     l_dist::T
     r_dist::T
-    lr_weights::AbstractArray{Float64, 1}
+    lr_weights::AbstractArray{Float32, 1}
 end
 
 
@@ -50,11 +50,11 @@ end
 
 mutable struct local_group
     model_hyperparams::model_hyper_params
-    points::AbstractArray{Float64,2}
+    points::AbstractArray{Float32,2}
     labels::AbstractArray{Int64,1}
     labels_subcluster::AbstractArray{Int64,1}
     local_clusters::Vector{local_cluster}
-    weights::Vector{Float64}
+    weights::Vector{Float32}
 end
 
 mutable struct pts_less_group
@@ -62,7 +62,7 @@ mutable struct pts_less_group
     labels::AbstractArray{Int64,1}
     labels_subcluster::AbstractArray{Int64,1}
     local_clusters::Vector{local_cluster}
-    weights::Vector{Float64}
+    weights::Vector{Float32}
 end
 
 mutable struct local_group_stats
@@ -86,7 +86,7 @@ function create_pts_less_group(group::local_group)
     return pts_less_group(group.model_hyperparams , Array(group.labels), Array(group.labels_subcluster), group.local_clusters, group.weights)
 end
 
-function create_model_from_saved_data(group::pts_less_group, points::AbstractArray{Float64,2},model_hyperparams::model_hyper_params)
+function create_model_from_saved_data(group::pts_less_group, points::AbstractArray{Float32,2},model_hyperparams::model_hyper_params)
     group = local_group(group.model_hyperparams, points , group.labels, group.labels_subcluster, group.local_clusters, group.weights)
     return dp_parallel_sampling(model_hyperparams, group)
 end

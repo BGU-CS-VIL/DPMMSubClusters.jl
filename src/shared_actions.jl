@@ -1,5 +1,5 @@
 
-function create_splittable_from_params(params::cluster_parameters, α::Float64)
+function create_splittable_from_params(params::cluster_parameters, α::Float32)
     params_l = deepcopy(params)
     params_l.distribution = sample_distribution(params.posterior_hyperparams)
     params_r = deepcopy(params)
@@ -9,7 +9,7 @@ function create_splittable_from_params(params::cluster_parameters, α::Float64)
 end
 
 
-function merge_clusters_to_splittable(cpl::cluster_parameters,cpr::cluster_parameters, α::Float64)
+function merge_clusters_to_splittable(cpl::cluster_parameters,cpr::cluster_parameters, α::Float32)
     suff_stats = aggregate_suff_stats(cpl.suff_statistics,cpr.suff_statistics)
     posterior_hyperparams = calc_posterior(cpl.hyperparams, suff_stats)
     lr_weights = rand(Dirichlet(Float64.([cpl.suff_statistics.N + (α / 2), cpr.suff_statistics.N + (α / 2)])))
@@ -18,7 +18,7 @@ function merge_clusters_to_splittable(cpl::cluster_parameters,cpr::cluster_param
 end
 
 
-function should_merge!(should_merge::AbstractArray{Float64,1}, cpl::cluster_parameters,cpr::cluster_parameters, α::Float64, final::Bool)
+function should_merge!(should_merge::AbstractArray{Float32,1}, cpl::cluster_parameters,cpr::cluster_parameters, α::Float32, final::Bool)
     new_suff = aggregate_suff_stats(cpl.suff_statistics, cpr.suff_statistics)
     cp = cluster_parameters(cpl.hyperparams, cpl.distribution, new_suff,cpl.posterior_hyperparams)
     cp.posterior_hyperparams = calc_posterior(cp.hyperparams, cp.suff_statistics)
@@ -38,8 +38,8 @@ function should_merge!(should_merge::AbstractArray{Float64,1}, cpl::cluster_para
 end
 
 
-function sample_cluster_params(params::splittable_cluster_params, α::Float64, first::Bool)
-    points_count = Vector{Float64}()
+function sample_cluster_params(params::splittable_cluster_params, α::Float32, first::Bool)
+    points_count = Vector{Float32}()
     params.cluster_params.distribution = sample_distribution(first ? params.cluster_params.hyperparams : params.cluster_params.posterior_hyperparams)
     params.cluster_params_l.distribution = sample_distribution(first ? params.cluster_params_l.hyperparams : params.cluster_params_l.posterior_hyperparams)
     params.cluster_params_r.distribution = sample_distribution(first ? params.cluster_params_r.hyperparams : params.cluster_params_r.posterior_hyperparams)

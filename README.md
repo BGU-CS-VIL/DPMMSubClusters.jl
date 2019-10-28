@@ -48,16 +48,16 @@ While being very verstile in the setting and configuration, there are 2 modes wh
 ### Basic
 In order to run in the basic mode, use the function:
 ```
-labels, clusters, weights = fit(all_data::AbstractArray{Float64,2},local_hyper_params::distribution_hyper_params,α_param::Float64;
+labels, clusters, weights = fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
 ```
 
 Or, if opting for the default Gaussian weak prior:
 ```
-labels, clusters, weights = fit(all_data::AbstractArray{Float64,2},α_param::Float64;
+labels, clusters, weights = fit(all_data::AbstractArray{Float32,2},α_param::Float32;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
 ```
-\* note that while we dispatch on `Float64`, other numbers will work as well, and will be cast if needed.
+\* note that while we dispatch on `Float32`, other numbers will work as well, and will be cast if needed.
 
 #### Args and Kwargs:
 

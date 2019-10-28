@@ -40,7 +40,7 @@ function sample_sub_clusters_worker!(group_points, group_labels, group_labels_su
 end
 
 function create_subclusters_labels!(labels::AbstractArray{Int64,1},
-        points::AbstractArray{Float64,2},
+        points::AbstractArray{Float32,2},
         cluster_params::thin_cluster_params)
     if size(labels,1) == 0
         return
@@ -53,7 +53,7 @@ function create_subclusters_labels!(labels::AbstractArray{Int64,1},
     #     labels[i] = sample(1:2, ProbabilityWeights(probs))
     #     # println(labels[i])
     # end
-    parr = zeros(Float64,length(labels), 2)
+    parr = zeros(Float32,length(labels), 2)
     log_likelihood!((@view parr[:,1]),points,cluster_params.l_dist)
     log_likelihood!((@view parr[:,2]),points,cluster_params.r_dist)
     parr[:,1] .+= log(cluster_params.lr_weights[1])
@@ -67,7 +67,7 @@ function sample_labels!(group::local_group, final::Bool)
 end
 
 function sample_labels!(labels::AbstractArray{Int64,1},
-        points::AbstractArray{Float64,2},
+        points::AbstractArray{Float32,2},
         final::Bool)
     for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_labels_worker!(labels,points,final)
@@ -89,19 +89,19 @@ end
 
 
 function sample_labels_worker!(labels::AbstractArray{Int64,1},
-        points::AbstractArray{Float64,2},
+        points::AbstractArray{Float32,2},
         final::Bool)
     indices = localindices(points)[2]
     lbls = localpart(labels)
     pts = localpart(points)
     log_weights = log.(clusters_weights)
-    parr = zeros(Float64,length(indices), length(clusters_vector))
+    parr = zeros(Float32,length(indices), length(clusters_vector))
     tic = time()
     for (k,cluster) in enumerate(clusters_vector)
         log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
-    # println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
-    # parr = zeros(Float64,length(indices), length(clusters_vector))
+    println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
+    # parr = zeros(Float32,length(indices), length(clusters_vector))
     # newx = copy(localpart(points)')
     # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
     #
@@ -309,8 +309,8 @@ function merge_clusters!(group::local_group,index_l::Int64, index_r::Int64)
 end
 
 
-function should_split_local!(should_split::AbstractArray{Float64,1},
-        cluster_params::splittable_cluster_params, α::Float64, final::Bool)
+function should_split_local!(should_split::AbstractArray{Float32,1},
+        cluster_params::splittable_cluster_params, α::Float32, final::Bool)
     cpl = cluster_params.cluster_params_l
     cpr = cluster_params.cluster_params_r
     cp = cluster_params.cluster_params
@@ -337,7 +337,7 @@ function should_split_local!(should_split::AbstractArray{Float64,1},
 end
 
 function check_and_split!(group::local_group, final::Bool)
-    split_arr= zeros(Float64,length(group.local_clusters))
+    split_arr= zeros(Float32,length(group.local_clusters))
     for (index,cluster) in enumerate(group.local_clusters)
         if cluster.cluster_params.splittable == true && cluster.cluster_params.cluster_params.suff_statistics.N > 1
             should_split_local!((@view split_arr[index,:]), cluster.cluster_params,
@@ -368,7 +368,7 @@ end
 
 
 function check_and_merge!(group::local_group, final::Bool)
-    mergable = zeros(Float64,1)
+    mergable = zeros(Float32,1)
     indices = Vector{Int64}()
     new_indices = Vector{Int64}()
     for i=1:length(group.local_clusters)
@@ -397,7 +397,7 @@ end
 
 
 function sample_clusters!(group::local_group, first::Bool)
-    points_count = Vector{Float64}()
+    points_count = Vector{Float32}()
     local_workers = procs(1)[2:end]
     cluster_params_futures = Dict()
     for (i,cluster) in enumerate(group.local_clusters)
@@ -447,14 +447,14 @@ function remove_empty_clusters!(group::local_group)
 end
 
 
-function rand_subclusters_labels!(labels::AbstractArray{Int64,1})    #lr_arr = create_array(zeros(Float64,length(labels), 2))
+function rand_subclusters_labels!(labels::AbstractArray{Int64,1})    #lr_arr = create_array(zeros(Float32,length(labels), 2))
     if size(labels,1) == 0
         return
     end
     labels .= rand(1:2,size(labels,1))
 end
 
-function reset_bad_clusters_worker!(indices::Vector{Int64}, group_points::AbstractArray{Float64,2},group_labels::AbstractArray{Int64,1}, group_labels_subcluster::AbstractArray{Int64,1})
+function reset_bad_clusters_worker!(indices::Vector{Int64}, group_points::AbstractArray{Float32,2},group_labels::AbstractArray{Int64,1}, group_labels_subcluster::AbstractArray{Int64,1})
     labels = localpart(group_labels)
     sub_labels = localpart(group_labels_subcluster)
     pts = localpart(group_points)

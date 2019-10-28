@@ -16,7 +16,7 @@ end
 
 
 # #Note that we expect the log_likelihood_array to be in rows (samples) x columns (clusters) , this is due to making it more efficent that way.
-function sample_log_cat_array!(labels::AbstractArray{Int64,1}, log_likelihood_array::AbstractArray{Float64,2})
+function sample_log_cat_array!(labels::AbstractArray{Int64,1}, log_likelihood_array::AbstractArray{Float32,2})
     # println("lsample log cat" * string(log_likelihood_array))
     max_log_prob_arr = maximum(log_likelihood_array, dims = 2)
     log_likelihood_array .-= max_log_prob_arr
@@ -31,7 +31,7 @@ end
 
 
 function create_sufficient_statistics(dist::distribution_hyper_params, pts::Array{Any,1})
-    return create_sufficient_statistics(dist,dist, Array{Float64}(undef, 0, 0))
+    return create_sufficient_statistics(dist,dist, Array{Float32}(undef, 0, 0))
 end
 
 
@@ -63,7 +63,7 @@ function get_node_leaders_dict()
 end
 
 function log_multivariate_gamma(x::Number, D::Number)
-    res::Float64 = D*(D-1)/4*log(pi)
+    res::Float32 = D*(D-1)/4*log(pi)
     for d = 1:D
         res += lgamma(x+(1-d)/2)
     end
