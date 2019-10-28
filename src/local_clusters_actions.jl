@@ -527,7 +527,7 @@ end
 function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
     sample_clusters!(group,false)
     broadcast_cluster_params([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
-    @time sample_labels!(group, (hard_clustering ? true : final))
+    sample_labels!(group, (hard_clustering ? true : final))
     sample_sub_clusters!(group)
     update_suff_stats_posterior!(group)
     reset_bad_clusters!(group)
