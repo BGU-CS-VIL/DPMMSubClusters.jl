@@ -345,12 +345,12 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
                 " || Iter Time:" * string(iter_time) *
                  " || Total time:" * string(sum(iter_count)))
         end
-        if length(dp_model.group.local_clusters) > cur_parr_count
-            cur_parr_count += max(20,length(dp_model.group.local_clusters))
-            @sync for i in (nworkers()== 0 ? procs() : workers())
-                @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
-            end
-        end
+        # if length(dp_model.group.local_clusters) > cur_parr_count
+        #     cur_parr_count += max(20,length(dp_model.group.local_clusters))
+        #     @sync for i in (nworkers()== 0 ? procs() : workers())
+        #         @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
+        #     end
+        # end
         if i % model_save_interval == 0 && should_save_model
             println("Saving Model:")
             # save_time = time()

@@ -529,7 +529,7 @@ function group_step(group::local_group, no_more_splits::Bool, final::Bool,first:
     broadcast_cluster_params([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
     sample_labels!(group, (hard_clustering ? true : final))
     sample_sub_clusters!(group)
-    update_suff_stats_posterior!(group)
+    @time update_suff_stats_posterior!(group)
     reset_bad_clusters!(group)
     if no_more_splits == false
         indices = []
