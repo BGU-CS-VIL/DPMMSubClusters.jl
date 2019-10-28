@@ -69,7 +69,7 @@ end
 function sample_labels!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
         final::Bool)
-    for i in (nworkers()== 0 ? procs() : workers())
+    @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_labels_worker!(labels,points,final)
     end
 end
@@ -100,7 +100,7 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     for (k,cluster) in enumerate(clusters_vector)
         log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
-    println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
+    # println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
     # parr = zeros(Float32,length(indices), length(clusters_vector))
     # newx = copy(localpart(points)')
     # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
@@ -527,7 +527,7 @@ end
 function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
     sample_clusters!(group,false)
     broadcast_cluster_params([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
-    sample_labels!(group, (hard_clustering ? true : final))
+    @time sample_labels!(group, (hard_clustering ? true : final))
     sample_sub_clusters!(group)
     update_suff_stats_posterior!(group)
     reset_bad_clusters!(group)
