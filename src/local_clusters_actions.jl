@@ -206,14 +206,8 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
         indices = collect(1:length(group.local_clusters))
     end
     if use_leader
-<<<<<<< HEAD
-        @sync begin
-            for i in collect(keys(leader_dict))
-            @async @time workers_suff_dict_fetched[i] = remotecall_fetch(create_suff_stats_dict_node_leader, i ,group.points,
-=======
         for i in collect(keys(leader_dict))
             workers_suff_dict[i] = remotecall(create_suff_stats_dict_node_leader, i ,group.points,
->>>>>>> parent of 25cc242... small update
                 group.labels,
                 group.labels_subcluster,
                 group.model_hyperparams.distribution_hyper_params,
