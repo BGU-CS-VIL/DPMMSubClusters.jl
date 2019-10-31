@@ -326,10 +326,11 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
         group_step(dp_model.group, no_more_splits, final, i==1)
         iter_time = time() - prev_time
         push!(iter_count,iter_time)
-        push!(liklihood_history,calculate_posterior(dp_model))
+
         push!(cluster_count_history,length(dp_model.group.local_clusters))
-        group_labels = Array(dp_model.group.labels)
+
         if ground_truth != nothing
+            group_labels = Array(dp_model.group.labels)
             push!(v_score_history, varinfo(Int.(ground_truth),group_labels))
             push!(nmi_score_history, mutualinfo(Int.(ground_truth),group_labels,normed=true))
         else
@@ -337,6 +338,7 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
             push!(nmi_score_history, "no gt")
         end
         if use_verbose
+            push!(liklihood_history,calculate_posterior(dp_model))
             println("Iteration: " * string(i) * " || Clusters count: " *
                 string(cluster_count_history[end]) *
                 " || Log posterior: " * string(liklihood_history[end]) *
@@ -344,13 +346,15 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
                 " || NMI score: " * string(nmi_score_history[end]) *
                 " || Iter Time:" * string(iter_time) *
                  " || Total time:" * string(sum(iter_count)))
+        else
+            push!(liklihood_history,1)
         end
-        if length(dp_model.group.local_clusters) > cur_parr_count
-            cur_parr_count += max(20,length(dp_model.group.local_clusters))
-            @sync for i in (nworkers()== 0 ? procs() : workers())
-                @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
-            end
-        end
+        # if length(dp_model.group.local_clusters) > cur_parr_count
+        #     cur_parr_count += max(20,length(dp_model.group.local_clusters))
+        #     @sync for i in (nworkers()== 0 ? procs() : workers())
+        #         @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
+        #     end
+        # end
         if i % model_save_interval == 0 && should_save_model
             println("Saving Model:")
             # save_time = time()

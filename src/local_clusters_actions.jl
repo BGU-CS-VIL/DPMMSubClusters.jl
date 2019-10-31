@@ -21,7 +21,7 @@ end
 
 
 function sample_sub_clusters!(group::local_group)
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_sub_clusters_worker!(group.points, group.labels, group.labels_subcluster)
     end
 end
@@ -69,7 +69,7 @@ end
 function sample_labels!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
         final::Bool)
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_labels_worker!(labels,points,final)
     end
 end
@@ -96,10 +96,11 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     pts = localpart(points)
     log_weights = log.(clusters_weights)
     parr = zeros(Float32,length(indices), length(clusters_vector))
-    @inbounds for (k,cluster) in enumerate(clusters_vector)
-        log_likelihood!(reshape((@view parr[:,k]),:,1), localpart(points),cluster.cluster_dist)
+    tic = time()
+    for (k,cluster) in enumerate(clusters_vector)
+        log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
-
+    # println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
     # parr = zeros(Float32,length(indices), length(clusters_vector))
     # newx = copy(localpart(points)')
     # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
@@ -170,7 +171,7 @@ function create_suff_stats_dict_node_leader(group_pts, group_labels, group_subla
     if indices == nothing
         indices = collect(1:length(clusters_vector))
     end
-    @sync for i in proc_ids
+    for i in proc_ids
         workers_suff_dict[i] = remotecall(create_suff_stats_dict_worker,i,group_pts,
             group_labels,
             group_sublabels,
@@ -199,13 +200,13 @@ function create_suff_stats_dict_node_leader(group_pts, group_labels, group_subla
 end
 
 
-function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = false)
+function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = true)
     workers_suff_dict = Dict()
     if indices == nothing
         indices = collect(1:length(group.local_clusters))
     end
     if use_leader
-        @sync for i in collect(keys(leader_dict))
+        for i in collect(keys(leader_dict))
             workers_suff_dict[i] = remotecall(create_suff_stats_dict_node_leader, i ,group.points,
                 group.labels,
                 group.labels_subcluster,
@@ -214,7 +215,7 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
                 indices)
         end
     else
-        @sync for i in (nworkers()== 0 ? procs() : workers())
+        for i in (nworkers()== 0 ? procs() : workers())
             workers_suff_dict[i] = @spawnat i create_suff_stats_dict_worker(group.points,
                 group.labels,
                 group.labels_subcluster,
@@ -358,7 +359,7 @@ function check_and_split!(group::local_group, final::Bool)
     end
     all_indices = vcat(indices,new_indices)
     if length(indices) > 0
-        @sync for i in (nworkers()== 0 ? procs() : workers())
+        for i in (nworkers()== 0 ? procs() : workers())
             @spawnat i split_cluster_local_worker!(group.labels,group.labels_subcluster,group.points,indices,new_indices)
         end
     end
@@ -387,7 +388,7 @@ function check_and_merge!(group::local_group, final::Bool)
             mergable[1] = 0
         end
     end
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i merge_clusters_worker!(group,indices,new_indices)
     end
     return indices
@@ -467,7 +468,7 @@ function reset_splitted_clusters!(group::local_group, bad_clusters::Vector{Int64
     for i in bad_clusters
         group.local_clusters[i].cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf]
     end
-    @sync for i in (nworkers()== 0 ? procs() : workers())
+    for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
     end
     update_suff_stats_posterior!(group,bad_clusters)
