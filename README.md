@@ -1,6 +1,5 @@
 [![Build Status](https://travis-ci.com/BGU-CS-VIL/DPMMSubClusters.jl.svg?branch=master)](https://travis-ci.com/BGU-CS-VIL/DPMMSubClusters.jl)
 [![Coverage Status](https://coveralls.io/repos/github/dinarior/DPMMSubClusters.jl/badge.svg?branch=master)](https://coveralls.io/github/dinarior/DPMMSubClusters.jl?branch=master)
-[![codecov](https://codecov.io/gh/dinarior/DPMMSubClusters.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/dinarior/DPMMSubClusters.jl)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://bgu-cs-vil.github.io/DPMMSubClusters.jl/stable/)
 
 
