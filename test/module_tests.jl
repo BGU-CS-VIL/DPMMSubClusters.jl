@@ -45,7 +45,7 @@ end
     @test size(x,2) == 10^3
     npzwrite("save_load_test/mnm_data.npy",x')
 
-    dp = dp_parallel("save_load_test/multinomial_params.jl",burnout = 5)
+    dp = dp_parallel("save_load_test/multinomial_params.jl")
     @test length(dp[1].group.local_clusters) > 1
     dp = run_model_from_checkpoint("save_load_test/checkpoint_20.jld2")
     @test length(dp[1].group.local_clusters) > 1

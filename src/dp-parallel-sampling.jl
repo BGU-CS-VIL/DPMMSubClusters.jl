@@ -279,14 +279,14 @@ dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_histo
  - `likelihood_history` Log likelihood per iteration.
  - `cluster_count_history` Cluster counts per iteration.
 """
-function dp_parallel(model_params::String; verbose = true, save_model = true,burnout = 5, gt = nothing)
+function dp_parallel(model_params::String; verbose = true, gt = nothing)
     include(model_params)
     global use_verbose = verbose
     dp_model = init_model()
     global leader_dict = get_node_leaders_dict()
-    global should_save_model = save_model
+    global should_save_model = enable_saving
     global ground_truth = gt
-    global burnout_period = burnout
+    global burnout_period = burnout_period
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
         println("Node Leaders:")
@@ -393,7 +393,7 @@ function run_model_from_checkpoint(filename)
     println("Including params")
     include(global_params)
     println("Loading data:")
-    @time data = distribute(load_data(data_path, prefix = data_prefix))
+    @time data = distribute((Float32.(load_data(data_path, prefix = data_prefix))))
     println("Creating model:")
     # @time begin
     group.labels = distribute(group.labels)

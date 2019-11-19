@@ -5,7 +5,7 @@ function create_splittable_from_params(params::cluster_parameters, α::Float32)
     params_r = deepcopy(params)
     params_r.distribution = sample_distribution(params.posterior_hyperparams)
     lr_weights = rand(Dirichlet(Float64.([α / 2, α / 2])))
-    return splittable_cluster_params(params,params_l,params_r,lr_weights, false, [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf])
+    return splittable_cluster_params(params,params_l,params_r,lr_weights, false, ones(burnout_period+5)*-Inf)
 end
 
 
@@ -14,7 +14,7 @@ function merge_clusters_to_splittable(cpl::cluster_parameters,cpr::cluster_param
     posterior_hyperparams = calc_posterior(cpl.hyperparams, suff_stats)
     lr_weights = rand(Dirichlet(Float64.([cpl.suff_statistics.N + (α / 2), cpr.suff_statistics.N + (α / 2)])))
     cp = cluster_parameters(cpl.hyperparams, cpl.distribution, suff_stats, posterior_hyperparams)
-    return splittable_cluster_params(cp,cpl,cpr,lr_weights, false, [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf])
+    return splittable_cluster_params(cp,cpl,cpr,lr_weights, false, ones(burnout_period+5)*-Inf)
 end
 
 

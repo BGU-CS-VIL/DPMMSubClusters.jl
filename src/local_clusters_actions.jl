@@ -5,7 +5,7 @@ function create_first_local_cluster(group::local_group)
     cp = cluster_parameters(group.model_hyperparams.distribution_hyper_params, dist, suff, post)
     cpl = deepcopy(cp)
     cpr = deepcopy(cp)
-    splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,[-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf])
+    splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,ones(burnout_period+5)*-Inf)
     cp.suff_statistics.N = size(group.points,2)
     cpl.suff_statistics.N = sum(group.labels_subcluster .== 1)
     cpl.suff_statistics.N = sum(group.labels_subcluster .== 2)
@@ -466,7 +466,7 @@ end
 function reset_splitted_clusters!(group::local_group, bad_clusters::Vector{Int64})
 
     for i in bad_clusters
-        group.local_clusters[i].cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf]
+        group.local_clusters[i].cluster_params.logsublikelihood_hist = ones(burnout_period+5)*-Inf
     end
     for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i reset_bad_clusters_worker!(bad_clusters,group.points, group.labels, group.labels_subcluster)
@@ -481,7 +481,7 @@ function reset_bad_clusters!(group::local_group)
         cr = c.cluster_params.cluster_params_r
         if cl.suff_statistics.N == 0 || cr.suff_statistics.N == 0
             push!(bad_clusters,i)
-            c.cluster_params.logsublikelihood_hist = [-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf,-Inf]
+            c.cluster_params.logsublikelihood_hist = ones(burnout_period+5)*-Inf
             c.cluster_params.splittable = false
         end
     end
@@ -535,8 +535,8 @@ function group_step(group::local_group, no_more_splits::Bool, final::Bool,first:
         indices = []
         indices = check_and_split!(group, final)
         update_suff_stats_posterior!(group, indices)
+        check_and_merge!(group, final)
     end
-    check_and_merge!(group, final)
     remove_empty_clusters!(group)
     return
 end
