@@ -110,7 +110,8 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
          verbose = true,
          save_model = false,
          burnout = 15,
-         gt = nothing)
+         gt = nothing,
+         max_clusters = Inf)
     global iterations = iters
     global random_seed = seed
     global hyper_params = local_hyper_params
@@ -119,6 +120,7 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
     global use_verbose = verbose
     global should_save_model = save_model
     global burnout_period = burnout
+    global max_num_of_clusters = max_clusters
     dp_model = init_model_from_data(all_data)
     global leader_dict = get_node_leaders_dict()
     init_first_clusters!(dp_model, initial_clusters)
@@ -183,8 +185,8 @@ julia> unique(ret_values[1])
 ```
 """
 function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
-        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf)
+        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
         return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
@@ -233,29 +235,29 @@ julia> unique(ret_values[1])
 ```
 """
 function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf)
     data_dim = size(all_data,1)
     cov_mat = Matrix{Float32}(I, data_dim, data_dim)
     local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
-    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt)
+    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
     return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
 end
 
 fit(all_data::AbstractArray, α_param;
         iters = 100, init_clusters = 1,
         seed = nothing, verbose = true,
-        save_model = false,burnout = 20, gt = nothing) =
+        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf) =
     fit(Float32.(all_data),Float32(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
-        save_model = save_model, burnout = burnout, gt = gt)
+        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters)
 
 fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_param;
         iters = 100, init_clusters::Number = 1,
         seed = nothing, verbose = true,
-        save_model = false,burnout = 20, gt = nothing) =
+        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf) =
     fit(Float32.(all_data),local_hyper_params,Float32(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
-        save_model = save_model, burnout = burnout, gt = gt)
+        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters)
 
 
 
@@ -287,6 +289,7 @@ function dp_parallel(model_params::String; verbose = true, gt = nothing)
     global should_save_model = enable_saving
     global ground_truth = gt
     global burnout_period = burnout_period
+    global max_num_of_clusters = max_clusters
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
         println("Node Leaders:")
@@ -318,7 +321,7 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
         if i >= iterations - argmax_sample_stop #We assume the cluters k has been setteled by now, and a low probability random split can do dmg
             final = true
         end
-        if i >= iterations - split_stop
+        if i >= iterations - split_stop || length(dp_model.group.local_clusters) >= max_num_of_clusters
             no_more_splits = true
         end
 

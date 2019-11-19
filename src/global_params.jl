@@ -14,6 +14,7 @@ random_seed = nothing #When nothing, a random seed will be used.
 
 max_split_iter = 20
 burnout_period = 20
+max_clusters = Inf
 
 #Model hyperparams
 α = 10.0 #Concetration Parameter
