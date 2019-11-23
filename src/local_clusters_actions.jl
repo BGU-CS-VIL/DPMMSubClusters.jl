@@ -100,13 +100,6 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     for (k,cluster) in enumerate(clusters_vector)
         log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
-    # println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
-    # parr = zeros(Float32,length(indices), length(clusters_vector))
-    # newx = copy(localpart(points)')
-    # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
-    #
-    #
-    #
     for (k,v) in enumerate(clusters_weights)
         parr[:,k] .+= log(v)
     end
@@ -116,18 +109,27 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     else
         sample_log_cat_array!(lbls,parr)
     end
-
-    # clust_dists = [c.cluster_dist for c in clusters_vector]
-    #
-    # @inbounds for i=1:size(lbls,1)
-    #     x = @view pts[:,i]
-    #     probs = RestrictedClusterProbs(log_weights,clust_dists,x)
-    #     # println(probs)
-    #     lbls[i] = sample(1:length(clusters_vector), ProbabilityWeights(probs))
-    #     # println(lbls[i])
-    # end
+end
 
 
+function get_points_parr(points::AbstractArray{Float32,2})
+    log_weights = log.(clusters_weights)
+    parr = zeros(Float32,size(points,2), length(clusters_vector))
+    tic = time()
+    for (k,cluster) in enumerate(clusters_vector)
+        log_likelihood!(reshape((@view parr[:,k]),:,1), points,cluster.cluster_dist)
+    end
+    for (k,v) in enumerate(clusters_weights)
+        parr[:,k] .+= log(v)
+    end
+    log_likelihood_array = parr
+    max_log_prob_arr = maximum(log_likelihood_array, dims = 2)
+    log_likelihood_array .-= max_log_prob_arr
+    map!(exp,log_likelihood_array,log_likelihood_array)
+    # println("lsample log cat2" * string(log_likelihood_array))
+    sum_prob_arr = sum(log_likelihood_array, dims =[2])
+    log_likelihood_array ./=  sum_prob_arr
+    return log_likelihood_array
 end
 
 

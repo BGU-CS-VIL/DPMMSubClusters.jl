@@ -186,8 +186,8 @@ julia> unique(ret_values[1])
 """
 function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf)
-        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
-        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
+        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history, cluster_assignments, parrs = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
+        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history, cluster_assignments, parrs
 end
 
 """
@@ -239,8 +239,8 @@ function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
     data_dim = size(all_data,1)
     cov_mat = Matrix{Float32}(I, data_dim, data_dim)
     local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
-    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
-    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
+    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history, cluster_assignments, parrs = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
+    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history, cluster_assignments, parrs
 end
 
 fit(all_data::AbstractArray, α_param;
@@ -309,6 +309,10 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
     cur_parr_count = 10
     cluster_count_history = []
 
+    cluster_assignments = []
+    parrs = []
+    all_pts = Array(dp_model.group.points)
+
     @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
     end
@@ -331,6 +335,10 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
         push!(iter_count,iter_time)
 
         push!(cluster_count_history,length(dp_model.group.local_clusters))
+        true_labels = Array(dp_model.group.labels)
+
+        push!(cluster_assignments, true_labels)
+        push!(parrs, get_points_parr(all_pts))
 
         if ground_truth != nothing
             group_labels = Array(dp_model.group.labels)
@@ -365,7 +373,7 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
             # start_time += time() - save_time
         end
     end
-    return dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
+    return dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history, cluster_assignments, parrs
 end
 
 
