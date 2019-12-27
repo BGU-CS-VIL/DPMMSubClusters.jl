@@ -20,6 +20,28 @@ function create_first_local_cluster(group::local_group)
 end
 
 
+function create_outlier_local_cluster(group::local_group,outlier_params)
+    suff = create_sufficient_statistics(outlier_params,outlier_params, Array(group.points))
+    post = calc_posterior(outlier_params,suff)
+    dist = sample_distribution(post)
+    cp = cluster_parameters(outlier_params, dist, suff, post)
+    cpl = deepcopy(cp)
+    cpr = deepcopy(cp)
+    splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,ones(burnout_period+5)*-Inf)
+    cp.suff_statistics.N = size(group.points,2)
+    cpl.suff_statistics.N = sum(group.labels_subcluster .== 1)
+    cpl.suff_statistics.N = sum(group.labels_subcluster .== 2)
+    cluster = local_cluster(splittable, group.model_hyperparams.total_dim,
+        cp.suff_statistics.N,
+        cpl.suff_statistics.N,
+        cpl.suff_statistics.N)
+    # @sync for i in (nworkers()== 0 ? procs() : workers())
+    #     @spawnat i split_first_cluster_worker!(group)
+    # end
+    return cluster
+end
+
+
 function sample_sub_clusters!(group::local_group)
     for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i sample_sub_clusters_worker!(group.points, group.labels, group.labels_subcluster)
@@ -62,15 +84,16 @@ function create_subclusters_labels!(labels::AbstractArray{Int64,1},
 end
 
 
-function sample_labels!(group::local_group, final::Bool)
-    sample_labels!(group.labels, group.points, final)
+function sample_labels!(group::local_group, final::Bool, no_more_splits::Bool)
+    sample_labels!(group.labels, group.points, final, no_more_splits)
 end
 
 function sample_labels!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
-        final::Bool)
+        final::Bool,
+        no_more_splits::Bool)
     for i in (nworkers()== 0 ? procs() : workers())
-        @spawnat i sample_labels_worker!(labels,points,final)
+        @spawnat i sample_labels_worker!(labels,points,final, no_more_splits)
     end
 end
 
@@ -90,7 +113,8 @@ end
 
 function sample_labels_worker!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
-        final::Bool)
+        final::Bool,
+        no_more_splits::Bool)
     indices = localindices(points)[2]
     lbls = localpart(labels)
     pts = localpart(points)
@@ -98,6 +122,10 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     parr = zeros(Float32,length(indices), length(clusters_vector))
     tic = time()
     for (k,cluster) in enumerate(clusters_vector)
+        # if no_more_splits == false && k==1
+        #      parr[:,k] .= -Inf
+        #      continue
+        # end
         log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
     # println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
@@ -232,6 +260,9 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
         end
     end
     for (index,v) in enumerate(indices)
+        # if outlier_mod > 0 && v == 1
+        #     continue
+        # end
         if length(suff_stats_vectors[index]) == 0
             continue
         end
@@ -339,6 +370,9 @@ end
 function check_and_split!(group::local_group, final::Bool)
     split_arr= zeros(Float32,length(group.local_clusters))
     for (index,cluster) in enumerate(group.local_clusters)
+        if outlier_mod > 0 && index == 1
+            continue
+        end
         if cluster.cluster_params.splittable == true && cluster.cluster_params.cluster_params.suff_statistics.N > 1
             should_split_local!((@view split_arr[index,:]), cluster.cluster_params,
                 group.model_hyperparams.α,final)
@@ -372,6 +406,9 @@ function check_and_merge!(group::local_group, final::Bool)
     indices = Vector{Int64}()
     new_indices = Vector{Int64}()
     for i=1:length(group.local_clusters)
+        if outlier_mod > 0 && i == 1
+            continue
+        end
         for j=i+1:length(group.local_clusters)
             if  (group.local_clusters[i].cluster_params.splittable == true &&
                     group.local_clusters[j].cluster_params.splittable == true &&
@@ -404,12 +441,18 @@ function sample_clusters!(group::local_group, first::Bool)
         cluster_params_futures[i] = sample_cluster_params(cluster.cluster_params, group.model_hyperparams.α,first)
     end
     for (i,cluster) in enumerate(group.local_clusters)
+        if outlier_mod > 0 && i == 1
+            continue
+        end
         cluster.cluster_params = fetch(cluster_params_futures[i])
         cluster.points_count = cluster.cluster_params.cluster_params.suff_statistics.N
         push!(points_count, cluster.points_count)
     end
     push!(points_count, group.model_hyperparams.α)
-    group.weights = rand(Dirichlet(Float64.(points_count)))[1:end-1]
+    group.weights = rand(Dirichlet(Float64.(points_count)))[1:end-1] .* (1 - outlier_mod)
+    if outlier_mod > 0
+        group.weights = vcat([outlier_mod],group.weights)
+    end
 end
 
 function create_thin_cluster_params(cluster::local_cluster)
@@ -436,7 +479,7 @@ function remove_empty_clusters!(group::local_group)
     pts_count = Vector{Int64}()
     for (index,cluster) in enumerate(group.local_clusters)
         push!(pts_count, cluster.points_count)
-        if cluster.points_count > 0
+        if cluster.points_count > 0 || (outlier_mod > 0 && index == 1) || (outlier_mod > 0 && index == 2 && length(group.local_clusters) == 2)
             push!(new_vec,cluster)
         end
     end
@@ -527,7 +570,7 @@ end
 function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
     sample_clusters!(group,false)
     broadcast_cluster_params([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
-    sample_labels!(group, (hard_clustering ? true : final))
+    sample_labels!(group, (hard_clustering ? true : final), no_more_splits)
     sample_sub_clusters!(group)
     update_suff_stats_posterior!(group)
     reset_bad_clusters!(group)
