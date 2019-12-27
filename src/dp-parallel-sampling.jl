@@ -18,7 +18,8 @@ function init_model()
     end
     total_dim = size(data,2)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
-    labels = distribute(rand(1:initial_clusters,(size(data,2))))
+
+    labels = distribute(rand(1:initial_clusters,(size(data,2))) .+ ((outlier_mod > 0) ? 1 : 0))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
     group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float32[])
     return dp_parallel_sampling(model_hyperparams,group)
@@ -45,7 +46,7 @@ function init_model_from_data(all_data)
 
     total_dim = size(data,2)
     model_hyperparams = model_hyper_params(hyper_params,α,total_dim)
-    labels = distribute(rand(1:initial_clusters,(size(data,2))))
+    labels = distribute(rand(1:initial_clusters,(size(data,2))) .+ ((outlier_mod > 0) ? 1 : 0))
     labels_subcluster = distribute(rand(1:2,(size(data,2))))
     group = local_group(model_hyperparams,data,labels,labels_subcluster,local_cluster[],Float32[])
     return dp_parallel_sampling(model_hyperparams,group)
@@ -59,6 +60,9 @@ Initialize the first clusters in the model, according to the number defined by i
 Mutates the model.
 """
 function init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_count::Int64)
+    if outlier_mod > 0
+        push!(dp_model.group.local_clusters, create_outlier_local_cluster(dp_model.group,outlier_hyper_params))
+    end
     for i=1:initial_cluster_count
         push!(dp_model.group.local_clusters, create_first_local_cluster(dp_model.group))
     end
@@ -70,15 +74,18 @@ end
 
 """
     dp_parallel(all_data::AbstractArray{Float32,2},
-           local_hyper_params::distribution_hyper_params,
-           α_param::Float32,
-            iters::Int64 = 100,
-            init_clusters::Int64 = 1,
-            seed = nothing,
-            verbose = true,
-            save_model = false,
-            burnout = 15,
-            gt = nothing)
+        local_hyper_params::distribution_hyper_params,
+        α_param::Float32,
+         iters::Int64 = 100,
+         init_clusters::Int64 = 1,
+         seed = nothing,
+         verbose = true,
+         save_model = false,
+         burnout = 15,
+         gt = nothing,
+         max_clusters = Inf,
+         outlier_weight = 0,
+         outlier_params = nothing)
 
 Run the model.
 # Args and Kwargs
@@ -92,6 +99,9 @@ Run the model.
  - `save_model` will save a checkpoint every 25 iterations.
  - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
  - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+ - `max_clusters` limit the number of cluster
+ - `outlier_weight` constant weight of an extra non-spliting component
+ - `outlier_params` hyperparams for an extra non-spliting component
 
 # Return values
 dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
@@ -111,7 +121,9 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
          save_model = false,
          burnout = 15,
          gt = nothing,
-         max_clusters = Inf)
+         max_clusters = Inf,
+         outlier_weight = 0,
+         outlier_params = nothing)
     global iterations = iters
     global random_seed = seed
     global hyper_params = local_hyper_params
@@ -121,6 +133,8 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
     global should_save_model = save_model
     global burnout_period = burnout
     global max_num_of_clusters = max_clusters
+    global outlier_mod = outlier_weight
+    global outlier_hyper_params = outlier_params
     dp_model = init_model_from_data(all_data)
     global leader_dict = get_node_leaders_dict()
     init_first_clusters!(dp_model, initial_clusters)
@@ -135,7 +149,7 @@ end
 
 """
     fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
-            iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
+       iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
 
 Run the model (basic mode).
 # Args and Kwargs
@@ -149,6 +163,9 @@ Run the model (basic mode).
  - `save_model` will save a checkpoint every 25 iterations.
  - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
  - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+ - `max_clusters` limit the number of cluster
+ - `outlier_weight` constant weight of an extra non-spliting component
+ - `outlier_params` hyperparams for an extra non-spliting component
 
 # Return Values
  - `labels` Labels assignments
@@ -158,6 +175,7 @@ Run the model (basic mode).
  - `nmi_score_history` NMI score per iteration (if gt suppled)
  - `likelihood_history` Log likelihood per iteration.
  - `cluster_count_history` Cluster counts per iteration.
+ - `sub_labels` Sub labels assignments
 
 # Example:
 ```julia
@@ -185,14 +203,15 @@ julia> unique(ret_values[1])
 ```
 """
 function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf)
-        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
-        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
+        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose, save_model,burnout,gt, max_clusters, outlier_weight, outlier_params)
+        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history,Array(dp_model.group.labels_subcluster)
 end
 
 """
     fit(all_data::AbstractArray{Float32,2},α_param::Float32;
-            iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
+
 
 Run the model (basic mode) with default `NIW` prior.
 # Args and Kwargs
@@ -205,6 +224,8 @@ Run the model (basic mode) with default `NIW` prior.
  - `save_model` will save a checkpoint every 25 iterations.
  - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
  - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+ - `outlier_weight` constant weight of an extra non-spliting component
+ - `outlier_params` hyperparams for an extra non-spliting component
 
 # Return Values
  - `labels` Labels assignments
@@ -214,6 +235,7 @@ Run the model (basic mode) with default `NIW` prior.
  - `nmi_score_history` NMI score per iteration (if gt suppled)
  - `likelihood_history` Log likelihood per iteration.
  - `cluster_count_history` Cluster counts per iteration.
+ - `sub_labels` Sub labels assignments
 
 # Example:
 ```julia
@@ -235,29 +257,29 @@ julia> unique(ret_values[1])
 ```
 """
 function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
     data_dim = size(all_data,1)
     cov_mat = Matrix{Float32}(I, data_dim, data_dim)
     local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
-    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose,save_model,burnout,gt, max_clusters)
-    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history
+    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters, seed,verbose,save_model,burnout,gt, max_clusters,outlier_weight, outlier_params)
+    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history, Array(dp_model.group.labels_subcluster)
 end
 
 fit(all_data::AbstractArray, α_param;
         iters = 100, init_clusters = 1,
         seed = nothing, verbose = true,
-        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf) =
+        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing) =
     fit(Float32.(all_data),Float32(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
-        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters)
+        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters, outlier_weight = outlier_weight, outlier_params = outlier_params)
 
 fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_param;
         iters = 100, init_clusters::Number = 1,
         seed = nothing, verbose = true,
-        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf) =
+        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing) =
     fit(Float32.(all_data),local_hyper_params,Float32(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
-        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters)
+        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters, outlier_weight = outlier_weight, outlier_params = outlier_params)
 
 
 
@@ -316,6 +338,7 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
 
     for i=first_iter:iterations
         # plot_group(dp_model.group)
+
         final = false
         no_more_splits = false
         if i >= iterations - argmax_sample_stop #We assume the cluters k has been setteled by now, and a low probability random split can do dmg
@@ -437,4 +460,59 @@ end
 
 function set_parr_worker(labels,cluster_count)
     global glob_parr = zeros(Float32,size(localpart(labels),1),cluster_count)
+end
+
+"""
+    cluster_statistics(points,labels, clusters)
+
+Provide avg statsitcs of probabiliy and likelihood for given points, labels and clusters
+
+# Args and Kwargs
+ - `points` a `DxN` array containing the data
+ - `labels` points labels
+ - `clusters` vector of clusters distributions
+
+
+# Return values
+avg_ll, avg_prob
+ - `avg_ll` each cluster avg point ll
+ - `avg_prob` each cluster avg point prob
+
+
+# Example:
+```julia
+julia> dp = run_model_from_checkpoint("checkpoint__50.jld2")
+Loading Model:
+  1.073261 seconds (2.27 M allocations: 113.221 MiB, 2.60% gc time)
+Including params
+Loading data:
+  0.000881 seconds (10.02 k allocations: 378.313 KiB)
+Creating model:
+Node Leaders:
+Dict{Any,Any}(2=>Any[2, 3])
+Running model:
+...
+```
+"""
+function cluster_statistics(points,labels, clusters)
+    parr = zeros(Float32,length(labels), length(clusters))
+    tic = time()
+    for (k,cluster) in enumerate(clusters)
+        log_likelihood!(reshape((@view parr[:,k]),:,1), points,cluster)
+    end
+    log_likelihood_array = copy(parr)
+    log_likelihood_array[isnan.(log_likelihood_array)] .= -Inf #Numerical errors arent fun
+    max_log_prob_arr = maximum(log_likelihood_array, dims = 2)
+    log_likelihood_array .-= max_log_prob_arr
+    map!(exp,log_likelihood_array,log_likelihood_array)
+    # println("lsample log cat2" * string(log_likelihood_array))
+    sum_prob_arr = sum(log_likelihood_array, dims =[2])
+    log_likelihood_array ./=  sum_prob_arr
+    avg_ll = zeros(length(clusters))
+    avg_prob = zeros(length(clusters))
+    for i=1:length(clusters)
+        avg_ll[i] = sum(parr[labels .== i,i]) / sum(labels .== i)
+        avg_prob[i] = sum(log_likelihood_array[labels .== i,i]) / sum(labels .== i)
+    end
+    return avg_ll, avg_prob
 end

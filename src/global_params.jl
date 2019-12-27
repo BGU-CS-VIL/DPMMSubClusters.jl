@@ -24,6 +24,13 @@ hyper_params = niw_hyperparams(1.0,
     Matrix{Float32}(I, 2, 2)*1.0)
 
 
+outlier_mod = 0.05 #Concetration Parameter
+outlier_hyper_params = niw_hyperparams(1.0,
+    zeros(Float32,2),
+    5,
+    Matrix{Float32}(I, 2, 2)*1.0)
+
+
 
 #Saving specifics:
 enable_saving = true

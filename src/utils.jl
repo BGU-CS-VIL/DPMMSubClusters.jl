@@ -18,6 +18,7 @@ end
 # #Note that we expect the log_likelihood_array to be in rows (samples) x columns (clusters) , this is due to making it more efficent that way.
 function sample_log_cat_array!(labels::AbstractArray{Int64,1}, log_likelihood_array::AbstractArray{Float32,2})
     # println("lsample log cat" * string(log_likelihood_array))
+    log_likelihood_array[isnan.(log_likelihood_array)] .= -Inf #Numerical errors arent fun
     max_log_prob_arr = maximum(log_likelihood_array, dims = 2)
     log_likelihood_array .-= max_log_prob_arr
     map!(exp,log_likelihood_array,log_likelihood_array)
