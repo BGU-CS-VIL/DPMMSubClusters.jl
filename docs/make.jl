@@ -16,5 +16,5 @@ makedocs(
 
 
 deploydocs(
-    repo = "github.com/BGU-VS-VIL/DPMMSubClusters.jl.git",
+    repo = "github.com/BGU-CS-VIL/DPMMSubClusters.jl.git",
 )
