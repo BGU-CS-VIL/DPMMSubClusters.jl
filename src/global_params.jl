@@ -7,8 +7,8 @@ data_prefix = "data_prefix"  #If the data file name is bob.npy, this should be '
 iterations = 100
 hard_clustering = false  #Soft or hard assignments
 initial_clusters = 1
-argmax_sample_stop = 0 #Change to hard assignment from soft at iterations - argmax_sample_stop
-split_stop  = 0 #Stop split/merge moves at  iterations - split_stop
+argmax_sample_stop = 5 #Change to hard assignment from soft at iterations - argmax_sample_stop
+split_stop  = 5#Stop split/merge moves at  iterations - split_stop
 
 random_seed = nothing #When nothing, a random seed will be used.
 

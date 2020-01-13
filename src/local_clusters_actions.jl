@@ -359,9 +359,9 @@ function should_split_local!(should_split::AbstractArray{Float32,1},
     log_likihood = log_marginal_likelihood(cp.hyperparams, post, cp.suff_statistics)
 
     log_HR = log(α) +
-        lgamma(cpl.suff_statistics.N) + log_likihood_l +
-        lgamma(cpr.suff_statistics.N) + log_likihood_r -
-        (lgamma(cp.suff_statistics.N) + log_likihood)
+        logabsgamma(cpl.suff_statistics.N)[1] + log_likihood_l +
+        logabsgamma(cpr.suff_statistics.N)[1] + log_likihood_r -
+        (logabsgamma(cp.suff_statistics.N)[1] + log_likihood)
     if log_HR > log(rand())
         should_split .= 1
     end

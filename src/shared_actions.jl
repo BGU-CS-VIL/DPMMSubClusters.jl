@@ -25,9 +25,9 @@ function should_merge!(should_merge::AbstractArray{Float32,1}, cpl::cluster_para
     log_likihood_l = log_marginal_likelihood(cpl.hyperparams, cpl.posterior_hyperparams, cpl.suff_statistics)
     log_likihood_r = log_marginal_likelihood(cpr.hyperparams, cpr.posterior_hyperparams, cpr.suff_statistics)
     log_likihood = log_marginal_likelihood(cp.hyperparams, cp.posterior_hyperparams, cp.suff_statistics)
-    log_HR = (-log(α) + lgamma(α) -2*lgamma(0.5*α) + lgamma(cp.suff_statistics.N) -lgamma(cp.suff_statistics.N + α) +
-        lgamma(cpl.suff_statistics.N + 0.5*α)-lgamma(cpl.suff_statistics.N)  - lgamma(cpr.suff_statistics.N) +
-        lgamma(cpr.suff_statistics.N + 0.5*α)+ log_likihood- log_likihood_l- log_likihood_r)
+    log_HR = (-log(α) + logabsgamma(α)[1] -2*logabsgamma(0.5*α)[1] + logabsgamma(cp.suff_statistics.N)[1] -logabsgamma(cp.suff_statistics.N + α)[1] +
+        logabsgamma(cpl.suff_statistics.N + 0.5*α)[1]-logabsgamma(cpl.suff_statistics.N)[1]  - logabsgamma(cpr.suff_statistics.N)[1] +
+        logabsgamma(cpr.suff_statistics.N + 0.5*α)[1]+ log_likihood- log_likihood_l- log_likihood_r)
     # log_HR = -(log(α) +
     #     lgamma(cpl.suff_statistics.N) + log_likihood_l +
     #     lgamma(cpr.suff_statistics.N) + log_likihood_r -

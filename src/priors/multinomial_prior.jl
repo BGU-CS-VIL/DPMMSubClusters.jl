@@ -34,7 +34,7 @@ end
 function log_marginal_likelihood(hyper::multinomial_hyper, posterior_hyper::multinomial_hyper, suff_stats::multinomial_sufficient_statistics)
     D = length(suff_stats.points_sum)
     logpi = log(pi)
-    val = lgamma(sum(hyper.α)) -lgamma(sum(posterior_hyper.α)) + sum(lgamma.(posterior_hyper.α) - lgamma.(hyper.α))
+    val = logabsgamma(sum(hyper.α))[1] -logabsgamma(sum(posterior_hyper.α))[1] + sum((x-> logabsgamma(x)[1]).(posterior_hyper.α) - (x-> logabsgamma(x)[1]).(hyper.α))
     return val
 end
 
