@@ -23,7 +23,7 @@ DistributedArrays = "0, 1"
 Distributions = "0, 1"
 JLD2 = "0, 1"
 NPZ = "0, 1"
-SpecialFunctions = "0.8,0.9"
+SpecialFunctions = "0.8, 0.9, 0.10"
 StatsBase = "0,1"
 julia = "1"
 
