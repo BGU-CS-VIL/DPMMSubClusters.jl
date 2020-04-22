@@ -10,7 +10,8 @@ This repository is a *Julia* package which holds the code for our paper **Distri
 </p>
 
 
-[Docs are now available](https://bgu-cs-vil.github.io/DPMMSubClusters.jl/stable/)
+[Docs are now available](https://bgu-cs-vil.github.io/DPMMSubClusters.jl/stable/) <br>
+[Python Wrapper is now available](https://github.com/BGU-CS-VIL/dpmmpython)
 
 ## Requirements
 This package was developed and tested on *Julia 1.0.3*, prior versions will not work.
