@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Priors · DPMMSubClusters.jl</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link href="../assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>DPMMSubClusters.jl</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="../search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="../">DPMMSubClusters.jl</a></li><li><a class="toctext" href="../getting_started/">Getting Started</a></li><li><a class="toctext" href="../usage/">Usage</a></li><li class="current"><a class="toctext" href>Priors</a><ul class="internal"><li><a class="toctext" href="#Existing-Priors-1">Existing Priors</a></li><li><a class="toctext" href="#Creating-new-Priors-1">Creating new Priors</a></li></ul></li><li><a class="toctext" href="../data_generation/">Data Generators</a></li><li><a class="toctext" href="../perf/">Performance Tips</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href>Priors</a></li></ul><a class="edit-page" href="https://github.com/BGU-CS-VIL/DPMMSubClusters.jl/blob/master/docs/src/priors.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Priors</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="Priors-1" href="#Priors-1">Priors</a></h1><p>The package currently support two priors, <code>NIW</code> for observations generated from gaussians, and <code>Dirichlet Distribution</code> for multinomial data.</p><p>Each prior is defined by the prior itself, and the distribution which is sampled from it.</p><h2><a class="nav-anchor" id="Existing-Priors-1" href="#Existing-Priors-1">Existing Priors</a></h2><h3><a class="nav-anchor" id="NIW-(Gaussian)-1" href="#NIW-(Gaussian)-1">NIW (Gaussian)</a></h3><p>For data generated from Gaussians we use a <code>NIW</code> prior, which a <code>Multivariate Normal</code> distribution is sampled from:</p><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="DPMMSubClusters.niw_hyperparams" href="#DPMMSubClusters.niw_hyperparams"><code>DPMMSubClusters.niw_hyperparams</code></a> — <span class="docstring-category">Type</span>.</div><div><div><pre><code class="language-julia">niw_hyperparams(κ::Float32, m::AbstractArray{Float32}, ν::Float32, ψ::AbstractArray{Float32})</code></pre><p><a href="https://en.wikipedia.org/wiki/Normal-inverse-Wishart_distribution">Normal Inverse Wishart</a></p></div></div><a class="source-link" target="_blank" href="https://github.com/BGU-CS-VIL/DPMMSubClusters.jl/blob/99132e65d33ab48b17e5ff04a4b99b739fd2061e/src/priors/niw.jl#L1-L5">source</a></section><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="DPMMSubClusters.mv_gaussian" href="#DPMMSubClusters.mv_gaussian"><code>DPMMSubClusters.mv_gaussian</code></a> — <span class="docstring-category">Type</span>.</div><div><div><pre><code class="language-julia">mv_gaussian(μ::AbstractArray{Float32,1}
+    Σ::AbstractArray{Float32,2}
+    invΣ::AbstractArray{Float32,2}
+    logdetΣ::Float32
+    invChol::UpperTriangular)</code></pre><p><a href="https://en.wikipedia.org/wiki/Multivariate_normal_distribution">Multivariate Normal Distribution</a></p></div></div><a class="source-link" target="_blank" href="https://github.com/BGU-CS-VIL/DPMMSubClusters.jl/blob/99132e65d33ab48b17e5ff04a4b99b739fd2061e/src/distributions/mv_gaussian.jl#L4-L11">source</a></section><h3><a class="nav-anchor" id="Multinomial-1" href="#Multinomial-1">Multinomial</a></h3><p>For multinomial distribution we will a <code>Dirichlet Distribution</code> prior, and a <code>Categorial Distribution</code> is sampled from it.</p><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="DPMMSubClusters.multinomial_hyper" href="#DPMMSubClusters.multinomial_hyper"><code>DPMMSubClusters.multinomial_hyper</code></a> — <span class="docstring-category">Type</span>.</div><div><div><pre><code class="language-julia">multinomial_hyper(α::AbstractArray{Float32,1})</code></pre><p><a href="https://en.wikipedia.org/wiki/Dirichlet_distribution">Dirichlet Distribution</a></p></div></div><a class="source-link" target="_blank" href="https://github.com/BGU-CS-VIL/DPMMSubClusters.jl/blob/99132e65d33ab48b17e5ff04a4b99b739fd2061e/src/priors/multinomial_prior.jl#L1-L5">source</a></section><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="DPMMSubClusters.multinomial_dist" href="#DPMMSubClusters.multinomial_dist"><code>DPMMSubClusters.multinomial_dist</code></a> — <span class="docstring-category">Type</span>.</div><div><div><pre><code class="language-julia">multinomial_hyper(α::AbstractArray{Float32,1})</code></pre><p><a href="https://en.wikipedia.org/wiki/Dirichlet_distribution">Dirichlet Distribution</a></p></div></div><a class="source-link" target="_blank" href="https://github.com/BGU-CS-VIL/DPMMSubClusters.jl/blob/99132e65d33ab48b17e5ff04a4b99b739fd2061e/src/distributions/multinomial_dist.jl#L4-L7">source</a></section><h2><a class="nav-anchor" id="Creating-new-Priors-1" href="#Creating-new-Priors-1">Creating new Priors</a></h2><p>If you require to create a new prior, you need to create both a distribution file, and a prior file (each in its designated folder). Note that the package only support conjugate priors.</p><p>The prior file must implement the following:</p><pre><code class="language-julia">struct prior_hyper_params &lt;: distribution_hyper_params
+    ...
+end
+
+mutable struct prior_sufficient_statistics &lt;: sufficient_statistics
+    N::Float32 #Must have this, even if not needed!
+    ...
+end
+
+
+function calc_posterior(prior:: prior_hyper_params, suff_statistics::prior_sufficient_statistics)
+    if suff_statistics.N == 0
+        return prior
+    end
+    return prior_hyper_params(...)
+end
+
+function sample_distribution(hyperparams::prior_hyper_params)
+    return new_dist(...)
+end
+
+function create_sufficient_statistics(hyper::prior_hyper_params,posterior::prior_hyper_params,points::AbstractArray{Float32,2}, pts_to_group = 0)
+    pts = copy(points)
+    ...
+    return prior_sufficient_statistics(size(points,2),...)
+end
+
+function log_marginal_likelihood(hyper::prior_hyper_params, posterior_hyper::prior_hyper_params, suff_stats::prior_sufficient_statistics)
+    ...
+    return value
+end
+
+function aggregate_suff_stats(suff_l::prior_sufficient_statistics, suff_r::prior_sufficient_statistics)
+    return prior_sufficient_statistics(...)
+end</code></pre><p>For the distribution file you must implement the following:</p><pre><code class="language-julia">struct new_dist &lt;: distibution_sample
+    ...
+end
+
+
+function log_likelihood!(r::AbstractArray,x::AbstractMatrix, distibution_sample::mv_gaussian , group::Int64 = -1)
+     ...
+    r .= (each sample log likelihood)
+end</code></pre><footer><hr/><a class="previous" href="../usage/"><span class="direction">Previous</span><span class="title">Usage</span></a><a class="next" href="../data_generation/"><span class="direction">Next</span><span class="title">Data Generators</span></a></footer></article></body></html>
