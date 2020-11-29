@@ -67,14 +67,6 @@ function create_subclusters_labels!(labels::AbstractArray{Int64,1},
     if size(labels,1) == 0
         return
     end
-    # clusts_dist = [cluster_params.l_dist, cluster_params.r_dist]
-    # log_weights = log.(cluster_params.lr_weights)
-    # @inbounds for i=1:size(labels,1)
-    #     x = @view points[:,i]
-    #     probs = RestrictedClusterProbs(log_weights,clusts_dist,x)
-    #     labels[i] = sample(1:2, ProbabilityWeights(probs))
-    #     # println(labels[i])
-    # end
     parr = zeros(Float32,length(labels), 2)
     log_likelihood!((@view parr[:,1]),points,cluster_params.l_dist)
     log_likelihood!((@view parr[:,2]),points,cluster_params.r_dist)
@@ -98,19 +90,6 @@ function sample_labels!(labels::AbstractArray{Int64,1},
 end
 
 
-function RestrictedClusterProbs(logπs::AbstractVector{V}, clusters,
-                                    x::AbstractVector) where V<:Real
-    p = Array{V,1}(undef,length(clusters))
-    max = typemin(V)
-    for (j,c) in enumerate(values(clusters))
-        @inbounds s = p[j] = logπs[j] + logαpdf(c,x)
-        max = s>max ? s : max
-    end
-    pc = exp.(p .- max)
-    return pc ./ sum(pc)
-end
-
-
 function sample_labels_worker!(labels::AbstractArray{Int64,1},
         points::AbstractArray{Float32,2},
         final::Bool,
@@ -122,19 +101,8 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     parr = zeros(Float32,length(indices), length(clusters_vector))
     tic = time()
     for (k,cluster) in enumerate(clusters_vector)
-        # if no_more_splits == false && k==1
-        #      parr[:,k] .= -Inf
-        #      continue
-        # end
         log_likelihood!(reshape((@view parr[:,k]),:,1), pts,cluster.cluster_dist)
     end
-    # println("Time: "* string(time()-tic) * "   size:" *string(size(pts)))
-    # parr = zeros(Float32,length(indices), length(clusters_vector))
-    # newx = copy(localpart(points)')
-    # @time log_likelihood!(parr, localpart(points),[c.cluster_dist for c in clusters_vector],log.(clusters_weights))
-    #
-    #
-    #
     for (k,v) in enumerate(clusters_weights)
         parr[:,k] .+= log(v)
     end
@@ -144,18 +112,6 @@ function sample_labels_worker!(labels::AbstractArray{Int64,1},
     else
         sample_log_cat_array!(lbls,parr)
     end
-
-    # clust_dists = [c.cluster_dist for c in clusters_vector]
-    #
-    # @inbounds for i=1:size(lbls,1)
-    #     x = @view pts[:,i]
-    #     probs = RestrictedClusterProbs(log_weights,clust_dists,x)
-    #     # println(probs)
-    #     lbls[i] = sample(1:length(clusters_vector), ProbabilityWeights(probs))
-    #     # println(lbls[i])
-    # end
-
-
 end
 
 

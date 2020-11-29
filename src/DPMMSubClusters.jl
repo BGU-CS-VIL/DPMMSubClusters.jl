@@ -8,7 +8,6 @@ using DistributedArrays
 using StatsBase
 using Distributions
 using SpecialFunctions
-using CatViews
 using LinearAlgebra
 using JLD2
 using Clustering
