@@ -10,7 +10,7 @@ Note that due to improvements in the code we have made since the time of the pul
 
 <br>
 <p align="center">
-<img src="https://www.cs.bgu.ac.il/~dinari/images/clusters_low_slow.gif" alt="DPGMM SubClusters 2d example">
+<img src="clusters_low_slow.gif" alt="DPGMM SubClusters 2d example">
 </p>
 
 
