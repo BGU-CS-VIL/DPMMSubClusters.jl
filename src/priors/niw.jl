@@ -26,9 +26,9 @@ function calc_posterior(prior:: niw_hyperparams, suff_statistics::niw_sufficient
     m = (prior.m.*prior.κ + suff_statistics.points_sum) / κ
     ψ = (prior.ν * prior.ψ + prior.κ*prior.m*prior.m' -κ*m*m'+ suff_statistics.S) / ν
     ψ = Matrix(Hermitian(ψ))
-    while(isposdef(ν*ψ) == false)
-        ψ += 0.01*I
-    end
+    # while(isposdef(ν*ψ) == false)
+    #     ψ += 0.01*I
+    # end
     return niw_hyperparams(κ,m,ν,ψ)
 end
 
@@ -48,6 +48,7 @@ function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hype
     pts = copy(points)
     points_sum = sum(pts, dims = 2)[:]
     S = pts * pts'
+    S = 0.5*(S+S')
     return niw_sufficient_statistics(size(points,2),points_sum,S)
 end
 
