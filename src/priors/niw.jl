@@ -5,15 +5,15 @@
 """
 struct niw_hyperparams <: distribution_hyper_params
     κ::Float32
-    m::AbstractArray{Float32}
+    m::AbstractArray{Float64}
     ν::Float32
-    ψ::AbstractArray{Float32}
+    ψ::AbstractArray{Float64}
 end
 
 mutable struct niw_sufficient_statistics <: sufficient_statistics
     N::Float32
-    points_sum::AbstractArray{Float32,1}
-    S::AbstractArray{Float32,2}
+    points_sum::AbstractArray{Float64,1}
+    S::AbstractArray{Float64,2}
 end
 
 
@@ -48,7 +48,7 @@ function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hype
     if size(points,2) == 0
         return niw_sufficient_statistics(size(points,2),zeros(Float32,length(hyper.m)),zeros(Float32,length(hyper.m),length(hyper.m)))
     end
-    pts = copy(points)
+    pts = Array{Float64}(points)
     points_sum = sum(pts, dims = 2)[:]
     S = pts * pts'
     S = 0.5*(S+S')
