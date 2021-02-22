@@ -25,7 +25,7 @@ function calc_posterior(prior:: niw_hyperparams, suff_statistics::niw_sufficient
     ν = prior.ν + suff_statistics.N
     m = (prior.m.*prior.κ + suff_statistics.points_sum) / κ
     ψ = (prior.ν * prior.ψ + prior.κ*prior.m*prior.m' -κ*m*m'+ suff_statistics.S) / ν
-    ψ = Matrix(Hermitian(ψ))
+    ψ = Matrix(Symmetric(ψ))
     ψ = (ψ+ψ')/2
     if isposdef(ν*ψ) == false
         println(eigvals(suff_statistics.S))
