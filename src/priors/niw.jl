@@ -29,6 +29,7 @@ function calc_posterior(prior:: niw_hyperparams, suff_statistics::niw_sufficient
     ψ = (ψ+ψ')/2
     if isposdef(ν*ψ) == false
         println(eigvals(suff_statistics.S))
+        println(extrema(suff_statistics.S))
         println(isposdef(suff_statistics.S))
     end
     return niw_hyperparams(κ,m,ν,ψ)
