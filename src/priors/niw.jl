@@ -28,8 +28,8 @@ function calc_posterior(prior:: niw_hyperparams, suff_statistics::niw_sufficient
     ψ = Matrix(Hermitian(ψ))
     ψ = (ψ+ψ')/2
     if isposdef(ν*ψ) == false
-        println(suff_statistics.points_sum)
-         println(isposdef(suff_statistics.S))
+        println(suff_statistics.S)
+        println(isposdef(suff_statistics.S))
     end
     return niw_hyperparams(κ,m,ν,ψ)
 end
