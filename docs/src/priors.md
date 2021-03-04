@@ -66,12 +66,12 @@ end
 
 For the distribution file you must implement the following:
 ```julia
-struct new_dist <: distibution_sample
+struct new_dist <: distribution_sample
     ...
 end
 
 
-function log_likelihood!(r::AbstractArray,x::AbstractMatrix, distibution_sample::mv_gaussian , group::Int64 = -1)
+function log_likelihood!(r::AbstractArray,x::AbstractMatrix, distribution_sample::mv_gaussian , group::Int64 = -1)
      ...
     r .= (each sample log likelihood)
 end
