@@ -1,7 +1,7 @@
 abstract type distribution_hyper_params end
 #Suff statistics must contain N which is the number of points associated with the cluster
 abstract type sufficient_statistics end
-abstract type distibution_sample end
+abstract type distribution_sample end
 import Base.copy
 
 struct model_hyper_params
@@ -12,7 +12,7 @@ end
 
 mutable struct cluster_parameters
     hyperparams::distribution_hyper_params
-    distribution::distibution_sample
+    distribution::distribution_sample
     suff_statistics::sufficient_statistics
     posterior_hyperparams::distribution_hyper_params
 end
@@ -26,7 +26,7 @@ mutable struct splittable_cluster_params
     logsublikelihood_hist::AbstractArray{Float32,1}
 end
 
-mutable struct thin_cluster_params{T <: distibution_sample}
+mutable struct thin_cluster_params{T <: distribution_sample}
     cluster_dist::T
     l_dist::T
     r_dist::T
