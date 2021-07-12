@@ -13,7 +13,7 @@ end
 mutable struct cluster_parameters
     hyperparams::distribution_hyper_params
     distribution::distribution_sample
-    suff_statistics::sufficient_statistics
+    suff_statistics::Vector{Tuple{sufficient_statistics,Int32}}
     posterior_hyperparams::distribution_hyper_params
 end
 
@@ -43,7 +43,7 @@ end
 mutable struct local_cluster
     cluster_params::splittable_cluster_params
     total_dim::Int64
-    points_count::Int64
+    points_count::Number
     l_count::Int64
     r_count::Int64
 end

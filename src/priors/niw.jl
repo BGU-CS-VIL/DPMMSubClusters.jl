@@ -17,14 +17,16 @@ mutable struct niw_sufficient_statistics <: sufficient_statistics
 end
 
 
-function calc_posterior(prior:: niw_hyperparams, suff_statistics::niw_sufficient_statistics)
-    if suff_statistics.N == 0
+function calc_posterior(prior:: niw_hyperparams, suff_statistics::Vector{Tuple{sufficient_statistics,Int32}})
+
+    points_num = sum([post_kernel(x[2],global_time)*x[1].N for x in suff_statistics])
+    if points_num == 0
         return prior
     end
-    κ = prior.κ + suff_statistics.N
-    ν = prior.ν + suff_statistics.N
-    m = (prior.m.*prior.κ + suff_statistics.points_sum) / κ
-    ψ = (prior.ν * prior.ψ + prior.κ*prior.m*prior.m' -κ*m*m'+ suff_statistics.S) / ν
+    κ = prior.κ + points_num
+    ν = prior.ν + points_num
+    m = (prior.m.*prior.κ + sum([post_kernel(x[2],global_time)*x[1].points_sum for x in suff_statistics],dims=1)[1]) / κ
+    ψ = (prior.ν * prior.ψ + prior.κ*prior.m*prior.m' -κ*m*m'+ sum([post_kernel(x[2],global_time)*x[1].S for x in suff_statistics])) / ν
     ψ = Matrix(Symmetric(ψ))
     ψ = (ψ+ψ')/2
     return niw_hyperparams(κ,m,ν,ψ)
@@ -50,10 +52,10 @@ function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hype
     return niw_sufficient_statistics(size(points,2),points_sum,S)
 end
 
-function log_marginal_likelihood(hyper::niw_hyperparams, posterior_hyper::niw_hyperparams, suff_stats::niw_sufficient_statistics)
-    D = length(suff_stats.points_sum)
+function log_marginal_likelihood(hyper::niw_hyperparams, posterior_hyper::niw_hyperparams, suff_stats::Vector{Tuple{sufficient_statistics,Int32}})
+    D = length(suff_stats[end][1].points_sum)
     logpi = log(pi)
-    return -suff_stats.N*D*0.5*logpi +
+    return -sum([post_kernel(x[2],global_time)*x[1].N for x in suff_stats])*D*0.5*logpi +
         log_multivariate_gamma(posterior_hyper.ν/2, D)-
         log_multivariate_gamma(hyper.ν/2, D) +
          (hyper.ν/2)*(D*log(hyper.ν)+logdet(hyper.ψ))-

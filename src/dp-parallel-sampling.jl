@@ -123,7 +123,9 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
          gt = nothing,
          max_clusters = Inf,
          outlier_weight = 0,
-         outlier_params = nothing)
+         outlier_params = nothing,
+         kernel_func = RBFKernel())
+    global post_kernel = kernel_func
     global iterations = iters
     global random_seed = seed
     global hyper_params = local_hyper_params
@@ -136,6 +138,7 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
     global outlier_mod = outlier_weight
     global outlier_hyper_params = outlier_params
     dp_model = init_model_from_data(all_data)
+    global global_time = 0
     global leader_dict = get_node_leaders_dict()
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
@@ -303,15 +306,17 @@ dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_histo
  - `likelihood_history` Log likelihood per iteration.
  - `cluster_count_history` Cluster counts per iteration.
 """
-function dp_parallel(model_params::String; verbose = true, gt = nothing)
+function dp_parallel(model_params::String; verbose = true, gt = nothing, kernel_func = RBFKernel())
     include(model_params)
     global use_verbose = verbose
+    global post_kernel = kernel_func
     dp_model = init_model()
     global leader_dict = get_node_leaders_dict()
     global should_save_model = enable_saving
     global ground_truth = gt
     global burnout_period = burnout_period
     global max_num_of_clusters = max_clusters
+    
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
         println("Node Leaders:")
@@ -330,7 +335,7 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
     global ground_truth
     cur_parr_count = 10
     cluster_count_history = []
-
+    
     @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
     end
@@ -349,7 +354,7 @@ function run_model(dp_model, first_iter, model_params="none", prev_time = 0)
         end
 
         prev_time = time()
-        group_step(dp_model.group, no_more_splits, final, i==1)
+        group_step(dp_model.group, no_more_splits, final, i==1,0.0)
         iter_time = time() - prev_time
         push!(iter_count,iter_time)
 
@@ -446,13 +451,14 @@ end
 function calculate_posterior(model::dp_parallel_sampling)
     log_posterior = logabsgamma(model.model_hyperparams.α)[1] - logabsgamma(size(model.group.points,2)+model.model_hyperparams.α)[1]
     for cluster in model.group.local_clusters
-        if cluster.cluster_params.cluster_params.suff_statistics.N == 0
+        
+        if sum([post_kernel(x[2],global_time)*x[1].N for x in cluster.cluster_params.cluster_params.suff_statistics]) == 0
             continue
         end
         log_posterior += log_marginal_likelihood(cluster.cluster_params.cluster_params.hyperparams,
             cluster.cluster_params.cluster_params.posterior_hyperparams,
             cluster.cluster_params.cluster_params.suff_statistics)
-        log_posterior += log(model.model_hyperparams.α) + logabsgamma(cluster.cluster_params.cluster_params.suff_statistics.N)[1]
+        log_posterior += log(model.model_hyperparams.α) + logabsgamma(sum([post_kernel(x[2],global_time)*x[1].N for x in cluster.cluster_params.cluster_params.suff_statistics]))[1]
     end
     return log_posterior
 end
@@ -515,4 +521,140 @@ function cluster_statistics(points,labels, clusters)
         avg_prob[i] = sum(log_likelihood_array[labels .== i,i]) / sum(labels .== i)
     end
     return avg_ll, avg_prob
+end
+
+
+
+
+"""
+    dp_parallel_streaming(all_data::AbstractArray{Float32,2},
+        local_hyper_params::distribution_hyper_params,
+        α_param::Float32,
+         iters::Int64 = 100,
+         init_clusters::Int64 = 1,
+         seed = nothing,
+         verbose = true,
+         save_model = false,
+         burnout = 15,
+         gt = nothing,
+         max_clusters = Inf,
+         outlier_weight = 0,
+         outlier_params = nothing)
+
+Run the model.
+# Args and Kwargs
+ - `all_data::AbstractArray{Float32,2}` a `DxN` array containing the data
+ - `local_hyper_params::distribution_hyper_params` the prior hyperparams
+ - `α_param::Float32` the concetration parameter
+ - `iters::Int64` number of iterations to run the model
+ - `init_clusters::Int64` number of initial clusters
+ - `seed` define a random seed to be used in all workers, if used must be preceeded with `@everywhere using random`.
+ - `verbose` will perform prints on every iteration.
+ - `save_model` will save a checkpoint every 25 iterations.
+ - `burnout` how long to wait after creating a cluster, and allowing it to split/merge
+ - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
+ - `max_clusters` limit the number of cluster
+ - `outlier_weight` constant weight of an extra non-spliting component
+ - `outlier_params` hyperparams for an extra non-spliting component
+
+# Return values
+dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
+ - `dp_model` The DPMM model inferred
+ - `iter_count` Timing for each iteration
+ - `nmi_score_history` NMI score per iteration (if gt suppled)
+ - `likelihood_history` Log likelihood per iteration.
+ - `cluster_count_history` Cluster counts per iteration.
+"""
+function dp_parallel_streaming(all_data::AbstractArray{Float32,2},
+        local_hyper_params::distribution_hyper_params,
+        α_param::Float32,
+         iters::Int64 = 20,
+         init_clusters::Int64 = 1,
+         seed = nothing,
+         verbose = true,
+         save_model = false,
+         burnout = 15,
+         gt = nothing,
+         max_clusters = Inf,
+         outlier_weight = 0,
+         outlier_params = nothing,
+         kernel_func = RBFKernel())
+    global post_kernel = kernel_func
+    global iterations = iters
+    global random_seed = seed
+    global hyper_params = local_hyper_params
+    global initial_clusters = init_clusters
+    global α = α_param
+    global use_verbose = verbose
+    global should_save_model = save_model
+    global burnout_period = burnout
+    global max_num_of_clusters = max_clusters
+    global outlier_mod = outlier_weight
+    global outlier_hyper_params = outlier_params
+    dp_model = init_model_from_data(all_data)
+    global global_time = 0
+    global leader_dict = get_node_leaders_dict()
+    init_first_clusters!(dp_model, initial_clusters)
+    if use_verbose
+        println("Node Leaders:")
+        println(leader_dict)
+    end
+    global ground_truth = gt
+    global liklihood_history = []
+    global cluster_count_history = []
+    global iter_count = []
+    global prev_iter = 0
+
+    @eval @everywhere global hard_clustering = $hard_clustering
+    return run_model_streaming(dp_model, iters,0)
+end
+
+
+function load_new_data!(dp_model,new_data)
+    if use_verbose
+        println("Loading and distributing data:")
+        @time data = distribute(new_data)
+    else
+        data = distribute(new_data)
+    end    
+    max_cluster = length(dp_model.group.local_clusters)
+    labels = distribute(rand(1:max_cluster,(size(data,2))))
+    labels_subcluster = distribute(rand(1:2,(size(data,2))))
+    dp_model.group.points = data
+    dp_model.group.labels = labels
+    dp_model.group.labels_subcluster = labels_subcluster
+end
+
+function run_model_streaming(dp_model,iters, cur_time, new_data=nothing)    
+    cur_parr_count = 10
+    cluster_count_history = []
+    if isnothing(new_data) == false
+        load_new_data!(dp_model,new_data)
+    end
+    
+    @sync for i in (nworkers()== 0 ? procs() : workers())
+        @spawnat i set_parr_worker(dp_model.group.labels,cur_parr_count)
+    end
+    global prev_iter
+    for i=prev_iter:prev_iter+iters
+        final = false
+        no_more_splits = false
+        prev_time = time()
+        group_step(dp_model.group, no_more_splits, final, i==1,cur_time)
+        iter_time = time() - prev_time
+        push!(iter_count,iter_time)
+        push!(cluster_count_history,length(dp_model.group.local_clusters))
+        if use_verbose
+            push!(liklihood_history,calculate_posterior(dp_model))
+            println("Iteration: " * string(i) * " || Clusters count: " *
+                string(cluster_count_history[end]) *
+                " || Log posterior: " * string(liklihood_history[end]) *
+                " || Iter Time:" * string(iter_time) *
+                 " || Total time:" * string(sum(iter_count)))
+        else
+            push!(liklihood_history,1)
+        end
+    end
+    prev_iter+= iters
+    return dp_model
 end

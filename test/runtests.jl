@@ -2,6 +2,7 @@ using Test
 using Distributed
 using LinearAlgebra
 using NPZ
+using Clustering
 
 @everywhere using Random
 @everywhere using DPMMSubClusters

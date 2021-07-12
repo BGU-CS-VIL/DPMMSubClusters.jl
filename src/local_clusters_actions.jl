@@ -2,17 +2,17 @@ function create_first_local_cluster(group::local_group)
     suff = create_sufficient_statistics(group.model_hyperparams.distribution_hyper_params, [])
     post = group.model_hyperparams.distribution_hyper_params
     dist = sample_distribution(post)
-    cp = cluster_parameters(group.model_hyperparams.distribution_hyper_params, dist, suff, post)
+    cp = cluster_parameters(group.model_hyperparams.distribution_hyper_params, dist, [(suff,0)], post)
     cpl = deepcopy(cp)
     cpr = deepcopy(cp)
     splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,ones(burnout_period+5)*-Inf)
-    cp.suff_statistics.N = size(group.points,2)
-    cpl.suff_statistics.N = sum(group.labels_subcluster .== 1)
-    cpl.suff_statistics.N = sum(group.labels_subcluster .== 2)
+    cp.suff_statistics[1][1].N = size(group.points,2)
+    cpl.suff_statistics[1][1].N = sum(group.labels_subcluster .== 1)
+    cpl.suff_statistics[1][1].N = sum(group.labels_subcluster .== 2)
     cluster = local_cluster(splittable, group.model_hyperparams.total_dim,
-        cp.suff_statistics.N,
-        cpl.suff_statistics.N,
-        cpl.suff_statistics.N)
+        cp.suff_statistics[1][1].N,
+        cpl.suff_statistics[1][1].N,
+        cpl.suff_statistics[1][1].N)
     @sync for i in (nworkers()== 0 ? procs() : workers())
         @spawnat i split_first_cluster_worker!(group)
     end
@@ -24,17 +24,17 @@ function create_outlier_local_cluster(group::local_group,outlier_params)
     suff = create_sufficient_statistics(outlier_params,outlier_params, Array(group.points))
     post = calc_posterior(outlier_params,suff)
     dist = sample_distribution(post)
-    cp = cluster_parameters(outlier_params, dist, suff, post)
+    cp = cluster_parameters(outlier_params, dist, [(suff,0)], post)
     cpl = deepcopy(cp)
     cpr = deepcopy(cp)
     splittable = splittable_cluster_params(cp,cpl,cpr,[0.5,0.5], false,ones(burnout_period+5)*-Inf)
-    cp.suff_statistics.N = size(group.points,2)
-    cpl.suff_statistics.N = sum(group.labels_subcluster .== 1)
-    cpl.suff_statistics.N = sum(group.labels_subcluster .== 2)
+    cp.suff_statistics[1][1].N = size(group.points,2)
+    cpl.suff_statistics[1][1].N = sum(group.labels_subcluster .== 1)
+    cpl.suff_statistics[1][1].N = sum(group.labels_subcluster .== 2)
     cluster = local_cluster(splittable, group.model_hyperparams.total_dim,
-        cp.suff_statistics.N,
-        cpl.suff_statistics.N,
-        cpl.suff_statistics.N)
+        cp.suff_statistics[1][1].N,
+        cpl.suff_statistics[1][1].N,
+        cpl.suff_statistics[1][1].N)
     # @sync for i in (nworkers()== 0 ? procs() : workers())
     #     @spawnat i split_first_cluster_worker!(group)
     # end
@@ -224,10 +224,20 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
         end
         cluster = group.local_clusters[v]
         cp = cluster.cluster_params
-        cp.cluster_params.suff_statistics = reduce(aggregate_suff_stats, [x.cluster_suff for x in suff_stats_vectors[index]])
-        cp.cluster_params_l.suff_statistics = reduce(aggregate_suff_stats, [x.l_suff for x in suff_stats_vectors[index]])
-        cp.cluster_params_r.suff_statistics = reduce(aggregate_suff_stats, [x.r_suff for x in suff_stats_vectors[index]])
-        cluster.points_count = cp.cluster_params.suff_statistics.N
+        suff_stat = reduce(aggregate_suff_stats, [x.cluster_suff for x in suff_stats_vectors[index]])
+        suff_stat_l = reduce(aggregate_suff_stats, [x.l_suff for x in suff_stats_vectors[index]])
+        suff_stat_r = reduce(aggregate_suff_stats, [x.r_suff for x in suff_stats_vectors[index]])
+        if cp.cluster_params.suff_statistics[end][2] == global_time
+            cp.cluster_params.suff_statistics[end] = (suff_stat,global_time)
+            cp.cluster_params_l.suff_statistics[end] = (suff_stat_l,global_time)
+            cp.cluster_params_r.suff_statistics[end] = (suff_stat_r,global_time)
+        else
+            push!(cp.cluster_params.suff_statistics,(suff_stat,global_time))
+            push!(cp.cluster_params_l.suff_statistics,(suff_stat_l,global_time))
+            push!(cp.cluster_params_r.suff_statistics,(suff_stat_r,global_time))
+        end
+        
+        cluster.points_count = sum([post_kernel(x[2],global_time)*x[1].N for x in cp.cluster_params.suff_statistics])
         update_splittable_cluster_params!(cluster.cluster_params)
     end
 
@@ -262,13 +272,10 @@ function split_cluster_local!(group::local_group, cluster::local_cluster, index:
 
     l_split = copy_local_cluster(cluster)
     l_split.cluster_params = create_splittable_from_params(cluster.cluster_params.cluster_params_r, group.model_hyperparams.α)
-    cluster.cluster_params = create_splittable_from_params(cluster.cluster_params.cluster_params_l, group.model_hyperparams.α)
-
-    l_split.points_count = l_split.cluster_params.cluster_params.suff_statistics.N
-    cluster.points_count = cluster.cluster_params.cluster_params.suff_statistics.N
-
+    cluster.cluster_params = create_splittable_from_params(cluster.cluster_params.cluster_params_l, group.model_hyperparams.α)    
+    l_split.points_count = sum([post_kernel(x[2],global_time)*x[1].N for x in l_split.cluster_params.cluster_params.suff_statistics])
+    cluster.points_count = sum([post_kernel(x[2],global_time)*x[1].N for x in cluster.cluster_params.cluster_params.suff_statistics])
     group.local_clusters[new_index] = l_split
-
 end
 
 function merge_clusters_worker!(group::local_group,indices::Vector{Int64}, new_indices::Vector{Int64})
@@ -301,7 +308,8 @@ function should_split_local!(should_split::AbstractArray{Float32,1},
     cpl = cluster_params.cluster_params_l
     cpr = cluster_params.cluster_params_r
     cp = cluster_params.cluster_params
-    if final || cpl.suff_statistics.N == 0 ||cpr.suff_statistics.N == 0
+    sum([post_kernel(x[2],global_time)*x[1].N for x in cpl.suff_statistics])
+    if final || sum([post_kernel(x[2],global_time)*x[1].N for x in cpl.suff_statistics]) == 0 ||sum([post_kernel(x[2],global_time)*x[1].N for x in cpr.suff_statistics]) == 0
         should_split .= 0
         return
     end
@@ -315,9 +323,9 @@ function should_split_local!(should_split::AbstractArray{Float32,1},
     log_likihood = log_marginal_likelihood(cp.hyperparams, post, cp.suff_statistics)
 
     log_HR = log(α) +
-        logabsgamma(cpl.suff_statistics.N)[1] + log_likihood_l +
-        logabsgamma(cpr.suff_statistics.N)[1] + log_likihood_r -
-        (logabsgamma(cp.suff_statistics.N)[1] + log_likihood)
+        logabsgamma(sum([post_kernel(x[2],global_time)*x[1].N for x in cpl.suff_statistics]))[1] + log_likihood_l +
+        logabsgamma(sum([post_kernel(x[2],global_time)*x[1].N for x in cpr.suff_statistics]))[1] + log_likihood_r -
+        (logabsgamma(sum([post_kernel(x[2],global_time)*x[1].N for x in cp.suff_statistics]))[1] + log_likihood)
     if log_HR > log(rand())
         should_split .= 1
     end
@@ -329,7 +337,8 @@ function check_and_split!(group::local_group, final::Bool)
         if outlier_mod > 0 && index == 1
             continue
         end
-        if cluster.cluster_params.splittable == true && cluster.cluster_params.cluster_params.suff_statistics.N > 1
+        
+        if cluster.cluster_params.splittable == true && sum([post_kernel(x[2],global_time)*x[1].N for x in cluster.cluster_params.cluster_params.suff_statistics]) > 1
             should_split_local!((@view split_arr[index,:]), cluster.cluster_params,
                 group.model_hyperparams.α,final)
         end
@@ -365,11 +374,12 @@ function check_and_merge!(group::local_group, final::Bool)
         if outlier_mod > 0 && i == 1
             continue
         end
+        sum([post_kernel(x[2],global_time)*x[1].N for x in group.local_clusters[i].cluster_params.cluster_params.suff_statistics])
         for j=i+1:length(group.local_clusters)
             if  (group.local_clusters[i].cluster_params.splittable == true &&
                     group.local_clusters[j].cluster_params.splittable == true &&
-                    group.local_clusters[i].cluster_params.cluster_params.suff_statistics.N > 0 &&
-                    group.local_clusters[j].cluster_params.cluster_params.suff_statistics.N > 0)
+                    sum([post_kernel(x[2],global_time)*x[1].N for x in group.local_clusters[i].cluster_params.cluster_params.suff_statistics]) > 0 &&
+                    sum([post_kernel(x[2],global_time)*x[1].N for x in group.local_clusters[j].cluster_params.cluster_params.suff_statistics]) > 0)
                 should_merge!(mergable, group.local_clusters[i].cluster_params.cluster_params,
                     group.local_clusters[j].cluster_params.cluster_params, group.model_hyperparams.α, final)
             end
@@ -400,8 +410,8 @@ function sample_clusters!(group::local_group, first::Bool)
         if outlier_mod > 0 && i == 1
             continue
         end
-        cluster.cluster_params = fetch(cluster_params_futures[i])
-        cluster.points_count = cluster.cluster_params.cluster_params.suff_statistics.N
+        cluster.cluster_params = fetch(cluster_params_futures[i])        
+        cluster.points_count = sum([post_kernel(x[2],global_time)*x[1].N for x in cluster.cluster_params.cluster_params.suff_statistics])
         push!(points_count, cluster.points_count)
     end
     push!(points_count, group.model_hyperparams.α)
@@ -432,10 +442,10 @@ end
 function remove_empty_clusters!(group::local_group)
     new_vec = Vector{local_cluster}()
     removed = 0
-    pts_count = Vector{Int64}()
+    pts_count = Vector{Number}()
     for (index,cluster) in enumerate(group.local_clusters)
         push!(pts_count, cluster.points_count)
-        if cluster.points_count > 0 || (outlier_mod > 0 && index == 1) || (outlier_mod > 0 && index == 2 && length(group.local_clusters) == 2)
+        if cluster.points_count >= 1 || (outlier_mod > 0 && index == 1) || (outlier_mod > 0 && index == 2 && length(group.local_clusters) == 2)
             push!(new_vec,cluster)
         end
     end
@@ -478,7 +488,8 @@ function reset_bad_clusters!(group::local_group)
     for (i,c) in enumerate(group.local_clusters)
         cl = c.cluster_params.cluster_params_l
         cr = c.cluster_params.cluster_params_r
-        if cl.suff_statistics.N == 0 || cr.suff_statistics.N == 0
+        sum([post_kernel(x[2],global_time)*x[1].N for x in cr.suff_statistics])
+        if sum([post_kernel(x[2],global_time)*x[1].N for x in cl.suff_statistics]) == 0 || sum([post_kernel(x[2],global_time)*x[1].N for x in cr.suff_statistics]) == 0
             push!(bad_clusters,i)
             c.cluster_params.logsublikelihood_hist = ones(burnout_period+5)*-Inf
             c.cluster_params.splittable = false
@@ -523,9 +534,10 @@ function set_global_data(params_vector, weights_vector)
     return succ
 end
 
-function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
+function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool,cur_time::Number)
     sample_clusters!(group,false)
     broadcast_cluster_params([create_thin_cluster_params(x) for x in group.local_clusters],group.weights)
+    global global_time = cur_time
     sample_labels!(group, (hard_clustering ? true : final), no_more_splits)
     sample_sub_clusters!(group)
     update_suff_stats_posterior!(group)

@@ -10,7 +10,7 @@ end
 
 
 function merge_clusters_to_splittable(cpl::cluster_parameters,cpr::cluster_parameters, α::Float32)
-    suff_stats = aggregate_suff_stats(cpl.suff_statistics,cpr.suff_statistics)
+    suff_stats = suff_stats_aggregation(cpl.suff_statistics,cpr.suff_statistics)
     posterior_hyperparams = calc_posterior(cpl.hyperparams, suff_stats)
     lr_weights = rand(Dirichlet(Float64.([cpl.suff_statistics.N + (α / 2), cpr.suff_statistics.N + (α / 2)])))
     cp = cluster_parameters(cpl.hyperparams, cpl.distribution, suff_stats, posterior_hyperparams)
@@ -19,15 +19,18 @@ end
 
 
 function should_merge!(should_merge::AbstractArray{Float32,1}, cpl::cluster_parameters,cpr::cluster_parameters, α::Float32, final::Bool)
-    new_suff = aggregate_suff_stats(cpl.suff_statistics, cpr.suff_statistics)
+    new_suff = suff_stats_aggregation(cpl.suff_statistics,cpr.suff_statistics)
     cp = cluster_parameters(cpl.hyperparams, cpl.distribution, new_suff,cpl.posterior_hyperparams)
     cp.posterior_hyperparams = calc_posterior(cp.hyperparams, cp.suff_statistics)
     log_likihood_l = log_marginal_likelihood(cpl.hyperparams, cpl.posterior_hyperparams, cpl.suff_statistics)
     log_likihood_r = log_marginal_likelihood(cpr.hyperparams, cpr.posterior_hyperparams, cpr.suff_statistics)
     log_likihood = log_marginal_likelihood(cp.hyperparams, cp.posterior_hyperparams, cp.suff_statistics)
-    log_HR = (-log(α) + logabsgamma(α)[1] -2*logabsgamma(0.5*α)[1] + logabsgamma(cp.suff_statistics.N)[1] -logabsgamma(cp.suff_statistics.N + α)[1] +
-        logabsgamma(cpl.suff_statistics.N + 0.5*α)[1]-logabsgamma(cpl.suff_statistics.N)[1]  - logabsgamma(cpr.suff_statistics.N)[1] +
-        logabsgamma(cpr.suff_statistics.N + 0.5*α)[1]+ log_likihood- log_likihood_l- log_likihood_r)
+    cpln = sum([post_kernel(x[2],global_time)*x[1].N for x in cpl.suff_statistics])
+    cprn = sum([post_kernel(x[2],global_time)*x[1].N for x in cpr.suff_statistics])
+    cpn = sum([post_kernel(x[2],global_time)*x[1].N for x in cp.suff_statistics])
+    log_HR = (-log(α) + logabsgamma(α)[1] -2*logabsgamma(0.5*α)[1] + logabsgamma(cpn)[1] -logabsgamma(cpn + α)[1] +
+        logabsgamma(cpln + 0.5*α)[1]-logabsgamma(cpln)[1]  - logabsgamma(cprn)[1] +
+        logabsgamma(cprn + 0.5*α)[1]+ log_likihood- log_likihood_l- log_likihood_r)
     # log_HR = -(log(α) +
     #     lgamma(cpl.suff_statistics.N) + log_likihood_l +
     #     lgamma(cpr.suff_statistics.N) + log_likihood_r -
@@ -43,8 +46,9 @@ function sample_cluster_params(params::splittable_cluster_params, α::Float32, f
     params.cluster_params.distribution = sample_distribution(first ? params.cluster_params.hyperparams : params.cluster_params.posterior_hyperparams)
     params.cluster_params_l.distribution = sample_distribution(first ? params.cluster_params_l.hyperparams : params.cluster_params_l.posterior_hyperparams)
     params.cluster_params_r.distribution = sample_distribution(first ? params.cluster_params_r.hyperparams : params.cluster_params_r.posterior_hyperparams)
-    push!(points_count, params.cluster_params_l.suff_statistics.N)
-    push!(points_count, params.cluster_params_r.suff_statistics.N)
+
+    push!(points_count, sum([post_kernel(x[2],global_time)*x[1].N for x in params.cluster_params_l.suff_statistics]))
+    push!(points_count, sum([post_kernel(x[2],global_time)*x[1].N for x in params.cluster_params_r.suff_statistics]))
     points_count .+= α / 2
     params.lr_weights = rand(Dirichlet(Float64.(points_count)))
 

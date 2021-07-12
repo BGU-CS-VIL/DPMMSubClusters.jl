@@ -1,1 +1,4 @@
 docs/build/
+Manifest.toml
+.vscode/settings.json
+test/save_load_test/mnm_data.npy
