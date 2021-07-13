@@ -40,41 +40,66 @@ end
 # end
 
 
-@testset "Streaming Data" begin
+# @testset "Streaming Data" begin
+#     @everywhere Random.seed!(12345)
+#     x,labels,clusters = generate_gaussian_data(10^6,3,10,100.0)
+#     x1 = x[:,1:5:end]
+#     x2 = x[:,2:5:end]
+#     x3 = x[:,3:5:end]
+#     x4 = x[:,4:5:end]
+#     x5 = x[:,5:5:end]
+#     labels1 = labels[1:5:end]
+#     labels2 = labels[2:5:end]
+#     labels3 = labels[3:5:end]
+#     labels4 = labels[4:5:end]
+#     labels5 = labels[5:5:end]
+
+#     hyper_params = DPMMSubClusters.niw_hyperparams(Float32(1.0),
+#                zeros(Float32,3),
+#                Float32(5),
+#                Matrix{Float32}(I, 3, 3)*1)
+#     dp = dp_parallel_streaming(x1,hyper_params,Float32(1000000000000000000000.0), 20,1,nothing,true,false,15,labels1)
+#     labels = dp.group.labels
+#     println("Part 1: ",mutualinfo(Int.(labels1),labels,normed=true))
+#     run_model_streaming(dp,20,2,x2)
+#     labels = dp.group.labels
+#     println("Part 2: ",mutualinfo(Int.(labels2),labels,normed=true))
+#     run_model_streaming(dp,20,4,x3)
+#     labels = dp.group.labels
+#     println("Part 3: ",mutualinfo(Int.(labels3),labels,normed=true))
+#     run_model_streaming(dp,20,6,x4)
+#     labels = dp.group.labels
+#     println("Part 4: ",mutualinfo(Int.(labels4),labels,normed=true))
+#     run_model_streaming(dp,20,8,x5)
+#     labels = dp.group.labels
+#     println("Part 5: ",mutualinfo(Int.(labels5),labels,normed=true))
+#     @test length(dp.group.local_clusters) > 1
+# end
+
+
+
+@testset "Streaming Data 2" begin
     @everywhere Random.seed!(12345)
     x,labels,clusters = generate_gaussian_data(10^6,3,10,100.0)
-    x1 = x[:,1:5:end]
-    x2 = x[:,2:5:end]
-    x3 = x[:,3:5:end]
-    x4 = x[:,4:5:end]
-    x5 = x[:,5:5:end]
-    labels1 = labels[1:5:end]
-    labels2 = labels[2:5:end]
-    labels3 = labels[3:5:end]
-    labels4 = labels[4:5:end]
-    labels5 = labels[5:5:end]
-
+    parts = 10000
+    xs = [x[:,i:parts:end] for i=1:parts]
+    labelss = [labels[i:parts:end] for i=1:parts]
     hyper_params = DPMMSubClusters.niw_hyperparams(Float32(1.0),
                zeros(Float32,3),
                Float32(5),
                Matrix{Float32}(I, 3, 3)*1)
-    dp = dp_parallel_streaming(x1,hyper_params,Float32(1000000000000000000000.0), 20,1,nothing,true,false,15,labels1)
+    dp = dp_parallel_streaming(xs[1],hyper_params,Float32(1000000000000000000000.0), 1,1,nothing,true,false,15,labelss[1],0.0001)
     labels = dp.group.labels
-    println("Part 1: ",mutualinfo(Int.(labels1),labels,normed=true))
-    run_model_streaming(dp,20,2,x2)
-    labels = dp.group.labels
-    println("Part 2: ",mutualinfo(Int.(labels2),labels,normed=true))
-    run_model_streaming(dp,20,4,x3)
-    labels = dp.group.labels
-    println("Part 3: ",mutualinfo(Int.(labels3),labels,normed=true))
-    run_model_streaming(dp,20,6,x4)
-    labels = dp.group.labels
-    println("Part 4: ",mutualinfo(Int.(labels4),labels,normed=true))
-    run_model_streaming(dp,20,8,x5)
-    labels = dp.group.labels
-    println("Part 5: ",mutualinfo(Int.(labels5),labels,normed=true))
+    avg_nmi = mutualinfo(Int.(labelss[1]),labels,normed=true)
+    for i=2:parts
+        run_model_streaming(dp,1,i*0.5,xs[i])
+        labels = dp.group.labels
+        avg_nmi += mutualinfo(Int.(labelss[i]),labels,normed=true)
+    end
+    println("NMI: ",avg_nmi/parts)
     @test length(dp.group.local_clusters) > 1
 end
+
 
 # @testset "Multinomial Module And save load" begin
 #     @everywhere Random.seed!(12345)

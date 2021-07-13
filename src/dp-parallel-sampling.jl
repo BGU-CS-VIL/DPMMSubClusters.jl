@@ -575,10 +575,12 @@ function dp_parallel_streaming(all_data::AbstractArray{Float32,2},
          save_model = false,
          burnout = 15,
          gt = nothing,
+         epsilon = 0.00001,
+         kernel_func = RBFKernel(),
          max_clusters = Inf,
          outlier_weight = 0,
-         outlier_params = nothing,
-         kernel_func = RBFKernel())
+         outlier_params = nothing
+        )
     global post_kernel = kernel_func
     global iterations = iters
     global random_seed = seed
@@ -594,6 +596,7 @@ function dp_parallel_streaming(all_data::AbstractArray{Float32,2},
     dp_model = init_model_from_data(all_data)
     global global_time = 0
     global leader_dict = get_node_leaders_dict()
+    global ϵ=epsilon
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
         println("Node Leaders:")
@@ -655,6 +658,6 @@ function run_model_streaming(dp_model,iters, cur_time, new_data=nothing)
             push!(liklihood_history,1)
         end
     end
-    prev_iter+= iters
+    prev_iter+= iters+1
     return dp_model
 end

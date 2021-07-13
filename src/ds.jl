@@ -13,7 +13,7 @@ end
 mutable struct cluster_parameters
     hyperparams::distribution_hyper_params
     distribution::distribution_sample
-    suff_statistics::Vector{Tuple{sufficient_statistics,Int32}}
+    suff_statistics::Vector{Tuple{sufficient_statistics,Number}}
     posterior_hyperparams::distribution_hyper_params
 end
 

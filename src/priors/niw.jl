@@ -17,8 +17,10 @@ mutable struct niw_sufficient_statistics <: sufficient_statistics
 end
 
 
-function calc_posterior(prior:: niw_hyperparams, suff_statistics::Vector{Tuple{sufficient_statistics,Int32}})
-
+function calc_posterior(prior:: niw_hyperparams, suff_statistics::Vector{Tuple{sufficient_statistics,Number}})
+    if length(suff_statistics) == 0
+        return prior
+    end
     points_num = sum([post_kernel(x[2],global_time)*x[1].N for x in suff_statistics])
     if points_num == 0
         return prior
@@ -52,7 +54,7 @@ function create_sufficient_statistics(hyper::niw_hyperparams,posterior::niw_hype
     return niw_sufficient_statistics(size(points,2),points_sum,S)
 end
 
-function log_marginal_likelihood(hyper::niw_hyperparams, posterior_hyper::niw_hyperparams, suff_stats::Vector{Tuple{sufficient_statistics,Int32}})
+function log_marginal_likelihood(hyper::niw_hyperparams, posterior_hyper::niw_hyperparams, suff_stats::Vector{Tuple{sufficient_statistics,Number}})
     D = length(suff_stats[end][1].points_sum)
     logpi = log(pi)
     return -sum([post_kernel(x[2],global_time)*x[1].N for x in suff_stats])*D*0.5*logpi +

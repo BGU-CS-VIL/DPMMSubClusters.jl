@@ -84,7 +84,7 @@ function dcolwise_dot!(r::AbstractArray, a::AbstractMatrix, b::AbstractMatrix)
 end
 
 
-function suff_stats_aggregation(suff_statistics_l::Vector{Tuple{sufficient_statistics,Int32}},suff_statistics_r::Vector{Tuple{sufficient_statistics,Int32}})
+function suff_stats_aggregation(suff_statistics_l::Vector{Tuple{sufficient_statistics,Number}},suff_statistics_r::Vector{Tuple{sufficient_statistics,Number}})
     max_age = maximum(vcat([x[2] for x in suff_statistics_l],[x[2] for x in suff_statistics_r]))
     index_l,index_r = 1,1
     cur_time = 0
@@ -98,11 +98,15 @@ function suff_stats_aggregation(suff_statistics_l::Vector{Tuple{sufficient_stati
         if index_r <= length(suff_statistics_r) && suff_statistics_r[index_r][2] == cur_time
             push!(ss_vector,suff_statistics_r[index_r][1])
             index_r += 1
-        end
-        cur_time+=1
+        end        
         if length(ss_vector) > 0            
             push!(suff_stats,(reduce(aggregate_suff_stats, ss_vector),cur_time))
-        end
+        end        
+        cur_time = min(index_l <= length(suff_statistics_l) ? suff_statistics_l[index_l][2] : max_age+1,
+                        index_r <= length(suff_statistics_r) ? suff_statistics_r[index_r][2] : max_age+1)
+    end
+    if length(suff_stats) == 0 && length(suff_statistics_l) != 0 && length(suff_statistics_r) != 0 
+        println([x[2] for x in suff_statistics_l],[x[2] for x in suff_statistics_r])
     end
     return suff_stats
 end

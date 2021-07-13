@@ -186,6 +186,7 @@ end
 
 function update_suff_stats_posterior!(group::local_group,indices = nothing, use_leader::Bool = true)
     workers_suff_dict = Dict()
+    global ϵ
     if indices == nothing
         indices = collect(1:length(group.local_clusters))
     end
@@ -236,7 +237,9 @@ function update_suff_stats_posterior!(group::local_group,indices = nothing, use_
             push!(cp.cluster_params_l.suff_statistics,(suff_stat_l,global_time))
             push!(cp.cluster_params_r.suff_statistics,(suff_stat_r,global_time))
         end
-        
+        deleteat!(cp.cluster_params.suff_statistics, findall(x->post_kernel(x[2],global_time)<=ϵ, cp.cluster_params.suff_statistics))
+        deleteat!(cp.cluster_params_l.suff_statistics, findall(x->post_kernel(x[2],global_time)<=ϵ, cp.cluster_params_l.suff_statistics))
+        deleteat!(cp.cluster_params_r.suff_statistics, findall(x->post_kernel(x[2],global_time)<=ϵ, cp.cluster_params_r.suff_statistics))
         cluster.points_count = sum([post_kernel(x[2],global_time)*x[1].N for x in cp.cluster_params.suff_statistics])
         update_splittable_cluster_params!(cluster.cluster_params)
     end
