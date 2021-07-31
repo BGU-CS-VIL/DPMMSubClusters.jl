@@ -1,5 +1,5 @@
-name = "DPMMSubClusters"
-uuid = "2841fd70-8698-11e9-176d-6dfa142d2ee7"
+name = "DPMMSubClustersStreaming"
+uuid = "b0533dcf-882c-4dcb-94d2-5d6bd7d08e17"
 authors = ["Or Dinari <dinari.or@gmail.com>"]
 version = "0.1.11"
 

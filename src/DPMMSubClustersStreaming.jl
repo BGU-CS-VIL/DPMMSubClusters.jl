@@ -1,6 +1,6 @@
 __precompile__()
 
-module DPMMSubClusters
+module DPMMSubClustersStreaming
 
 
 using Distributed
