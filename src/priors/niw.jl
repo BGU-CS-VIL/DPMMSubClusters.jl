@@ -64,3 +64,13 @@ end
 function aggregate_suff_stats(suff_l::niw_sufficient_statistics, suff_r::niw_sufficient_statistics)
     return niw_sufficient_statistics(suff_l.N+suff_r.N, suff_l.points_sum + suff_r.points_sum, suff_l.S+suff_r.S)
 end
+
+function posterior_predictive!(r::AbstractArray,x::AbstractMatrix,posterior_hyper::niw_hyperparams)
+    ν = posterior_hyper.ν
+    ψ = posterior_hyper.ψ
+    κ = posterior_hyper.κ
+    m = posterior_hyper.m
+    D = length(m)  
+    mvt = MvTDist(ν-D+1,m,((κ+1)/(κ*(ν-D+1)))*ν*ψ)
+    r .= logpdf(mvt,x)
+end

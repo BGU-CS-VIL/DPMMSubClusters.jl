@@ -41,3 +41,8 @@ end
 function aggregate_suff_stats(suff_l::multinomial_sufficient_statistics, suff_r::multinomial_sufficient_statistics)
     return multinomial_sufficient_statistics(suff_l.N+suff_r.N, suff_l.points_sum + suff_r.points_sum)
 end
+
+function posterior_predictive!(r::AbstractArray,x::AbstractMatrix,posterior_hyper::multinomial_hyper)
+    v_sum = log.(posterior_hyper.α/sum(posterior_hyper.α))
+    r .= (v_sum * x)[1,:]
+end

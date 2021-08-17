@@ -9,7 +9,11 @@ end
 
 @testset "Testing Module (Determinstic)" begin
     data = create_data_for_test()
-    labels,clusters,weights = fit(data,100.0, iters = 200, seed = 12345, burnout = 5)
+    results = fit(data,100.0, iters = 200, seed = 123456789, burnout = 15)
+    labels = results[1]
+    clusters = results[2]
+    weights = results[3]
+    model = results[end]
     @test all(data[:,1:250] .== data[:,1])
     @test all(data[:,251:500] .== data[:,251])
     @test all(data[:,501:750] .== data[:,501])
@@ -18,6 +22,8 @@ end
     println(weights)
     @test all(weights .>= 0.15)
     labels_histogram = get_labels_histogram(labels)
+    preds = predict(model,data)
+    @test all(preds .== labels)
     for (k,v) in labels_histogram
         @test v == 250
     end
@@ -34,7 +40,7 @@ end
                Float32(5),
                Matrix{Float32}(I, 3, 3)*1)
 
-    dp = dp_parallel(x,hyper_params,Float32(1000000000000000000000.0), 100,1,nothing,true,false,15,labels)
+    dp = dp_parallel(x,hyper_params,Float32(1000000000000000000000.0), 100,1,nothing,true,false,15,labels)    
     @test length(dp[1].group.local_clusters) > 1
 end
 

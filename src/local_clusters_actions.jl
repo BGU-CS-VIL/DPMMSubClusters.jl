@@ -20,6 +20,19 @@ function create_first_local_cluster(group::local_group)
 end
 
 
+function predict_points(points::AbstractArray{Float32,2},clusters,clusters_weights)
+    lbls = zeros(Int64,size(points)[2])
+    parr = zeros(Float32,length(lbls), length(clusters))
+    for (k,cluster) in enumerate(clusters)
+        posterior_predictive!(reshape((@view parr[:,k]),:,1), points,cluster.posterior_hyperparams)
+    end    
+    for (k,v) in enumerate(clusters_weights)
+        parr[:,k] .+= log(v)
+    end
+    lbls .= mapslices(argmax, parr, dims= [2])[:]
+    return lbls
+end
+
 function create_outlier_local_cluster(group::local_group,outlier_params)
     suff = create_sufficient_statistics(outlier_params,outlier_params, Array(group.points))
     post = calc_posterior(outlier_params,suff)

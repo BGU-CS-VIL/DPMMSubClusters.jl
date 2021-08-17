@@ -205,7 +205,7 @@ julia> unique(ret_values[1])
 function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
         iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
         dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose, save_model,burnout,gt, max_clusters, outlier_weight, outlier_params)
-        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history,Array(dp_model.group.labels_subcluster)
+        return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history,Array(dp_model.group.labels_subcluster),dp_model
 end
 
 """
@@ -262,7 +262,7 @@ function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
     cov_mat = Matrix{Float32}(I, data_dim, data_dim)
     local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
     dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters, seed,verbose,save_model,burnout,gt, max_clusters,outlier_weight, outlier_params)
-    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history, Array(dp_model.group.labels_subcluster)
+    return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history, Array(dp_model.group.labels_subcluster), dp_model
 end
 
 fit(all_data::AbstractArray, α_param;
@@ -515,4 +515,11 @@ function cluster_statistics(points,labels, clusters)
         avg_prob[i] = sum(log_likelihood_array[labels .== i,i]) / sum(labels .== i)
     end
     return avg_ll, avg_prob
+end
+
+function predict(dp_model,data)
+    weights = [x.points_count for x in dp_model.group.local_clusters] .+ dp_model.model_hyperparams.α
+    weights ./= sum(weights)    
+    labels = predict_points(data,[x.cluster_params.cluster_params for x in dp_model.group.local_clusters],weights)
+    return labels
 end
