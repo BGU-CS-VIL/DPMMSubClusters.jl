@@ -7,6 +7,7 @@
 This is the code repository for the *Julia* package (with an optional [Python wrapper](https://github.com/BGU-CS-VIL/dpmmpython)) that corresponds to our paper, [Distributed MCMC Inference in Dirichlet Process Mixture Models Using Julia](https://www.cs.bgu.ac.il/~dinari/papers/dpmm_hpml2019.pdf), which was presented at CCGrid2019 High Performance Computing Maching Learning workshop (HPML).
 
 Note that due to improvements in the code we have made since the time of the pulication of the paper, this package is now faster than what we reported there.
+This is a CPU-based package, which supports multiple cores and multiple machines. However, please also check out its even-faster [GPU counterpart](https://github.com/BGU-CS-VIL/DPMMSubClusters_GPU). 
 
 <br>
 <p align="center">
