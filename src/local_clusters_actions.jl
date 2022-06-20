@@ -30,7 +30,13 @@ function predict_points(points::AbstractArray{Float32,2},clusters,clusters_weigh
         parr[:,k] .+= log(v)
     end
     lbls .= mapslices(argmax, parr, dims= [2])[:]
-    return lbls
+    parr[isnan.(parr)] .= -Inf #Numerical errors arent fun
+    max_log_prob_arr = maximum(parr, dims = 2)
+    parr .-= max_log_prob_arr
+    map!(exp,parr,parr)
+    sum_prob_arr = sum(parr, dims =[2])
+    parr ./=  sum_prob_arr
+    return lbls,parr
 end
 
 function create_outlier_local_cluster(group::local_group,outlier_params)

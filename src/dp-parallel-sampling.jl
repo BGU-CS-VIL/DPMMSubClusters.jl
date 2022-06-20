@@ -520,6 +520,6 @@ end
 function predict(dp_model,data)
     weights = [x.points_count for x in dp_model.group.local_clusters] .+ dp_model.model_hyperparams.α
     weights ./= sum(weights)    
-    labels = predict_points(data,[x.cluster_params.cluster_params for x in dp_model.group.local_clusters],weights)
-    return labels
+    labels,probs = predict_points(data,[x.cluster_params.cluster_params for x in dp_model.group.local_clusters],weights)
+    return labels,probs
 end
