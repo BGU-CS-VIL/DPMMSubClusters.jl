@@ -38,3 +38,6 @@ model_save_interval = 1000
 save_path = "/path/to/save/dir/"
 overwrite_prec = false
 save_file_prefix = "checkpoint_"
+
+
+smart_splits = false

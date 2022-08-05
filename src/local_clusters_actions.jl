@@ -371,7 +371,13 @@ function check_and_split!(group::local_group, final::Bool)
         for i in (nworkers()== 0 ? procs() : workers())
             @spawnat i split_cluster_local_worker!(group.labels,group.labels_subcluster,group.points,indices,new_indices)
         end
+        if use_smart_splits
+            for i in all_indices
+                smart_cluster_init!(group,i)
+            end
+        end
     end
+    
     return all_indices
 end
 
@@ -541,6 +547,113 @@ function set_global_data(params_vector, weights_vector)
     end
     return succ
 end
+
+
+
+
+
+function smart_cluster_init!(group::local_group,cluster_num::Int64)
+
+    N = group.local_clusters[cluster_num].cluster_params.cluster_params.suff_statistics.N
+    XXT = group.local_clusters[cluster_num].cluster_params.cluster_params.suff_statistics.S / N
+    μ = group.local_clusters[cluster_num].cluster_params.cluster_params.suff_statistics.points_sum / N
+    M = XXT - μ*μ'
+    # println("vecs:")
+    F = eigen(M)
+    vecs = F.vectors
+    vals = F.values
+    # println("eigsolve:")
+    # v1 = eigsolve(M, 1, maxiter = 10)[2][1]
+    mxindx = findmax(vals)[2]
+    v1=vecs[mxindx,:]
+    means_futures = Vector{Future}(undef,nworkers())
+    if nprocs() > 1
+        for i in workers()
+            means_futures[i-1] =  @spawnat i tranform_points_worker!(group.points,group.labels,(@eval $cluster_num),(@eval $v1),(@eval $μ))
+        end
+    else
+        means_futures[1] =  @spawnat 1 tranform_points_worker!(group.points,group.labels,cluster_num,v1,μ)
+    end
+    min_pts = [fetch(x) != nothing ? fetch(x)[1] : nothing for x in means_futures if fetch(x) != nothing]
+    max_pts = [fetch(x) != nothing ? fetch(x)[2] : nothing for x in means_futures if fetch(x) != nothing]
+    if length(min_pts) == 0
+        return
+    end
+
+    min_mean = minimum(min_pts)
+    max_mean = maximum(max_pts)
+    # min_mean = -100
+    # max_mean = +100
+    #Distributed K-Means
+    iter = 0
+    converged = false
+    while(iter < max_split_iter && !converged)
+        means_futures = Vector{Future}(undef,nworkers())
+        if nprocs() > 1
+            @sync for i in workers()
+                means_futures[i-1] = @spawnat i kmeans_iter_worker!(min_mean,max_mean)
+            end
+        else
+            means_futures[1] = @spawnat 1 kmeans_iter_worker!(min_mean,max_mean)
+        end
+        min_means = [fetch(x) != nothing ? fetch(x)[1] : nothing for x in means_futures if fetch(x) != nothing]
+        max_means = [fetch(x) != nothing ? fetch(x)[2] : nothing for x in means_futures if fetch(x) != nothing]
+        min_sum = 0
+        min_count = 0
+        for x in min_means
+            min_sum += x[1]
+            min_count += x[2]
+        end
+        max_sum = 0
+        max_count = 0
+        for x in max_means
+            max_sum += x[1]
+            max_count += x[2]
+        end
+        new_min = min_sum / min_count
+        new_max = max_sum / max_count
+        if new_min == min_mean && new_max == max_mean
+            converged = true
+        else
+            min_mean = new_min
+            max_mean = new_max
+        end
+        iter += 1
+    end
+    @sync for i in workers()
+        @spawnat i set_smart_labels_in_worker!(cluster_num,group.labels, group.labels_subcluster,group.points)
+    end
+end
+
+function set_smart_labels_in_worker!(cluster_num,labels,sub_labels,points)
+    labels = localpart(labels)
+    sub_labels = localpart(sub_labels)
+    sub_labels[labels .== cluster_num] .= split_labels
+end
+
+function kmeans_iter_worker!(min_mean,max_mean)
+    global split_labels = [(abs(x - min_mean) < abs(x-max_mean) ? 1 : 2) for x in (@view transformed_pts[:])]
+    if length(split_labels) > 0
+        return (sum(transformed_pts[split_labels .== 1]), sum(split_labels .== 1)), (sum(transformed_pts[split_labels .== 2]), sum(split_labels .== 2))
+    end
+    return nothing
+end
+
+function tranform_points_worker!(all_pts,all_labels,cluster_num::Int64,v,μ)
+
+    pts = localpart(all_pts)
+    labels = localpart(all_labels)
+    rel_points = pts[:,labels .== cluster_num] .- μ
+    global transformed_pts = v' * rel_points
+
+    if length(transformed_pts) > 1
+        return percentile((@view transformed_pts[:]),0.10), percentile((@view transformed_pts[:]),0.90)
+    end
+    return nothing
+end
+
+
+
 
 function group_step(group::local_group, no_more_splits::Bool, final::Bool,first::Bool)
     sample_clusters!(group,false)
