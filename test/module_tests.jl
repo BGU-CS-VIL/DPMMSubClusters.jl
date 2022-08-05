@@ -22,7 +22,9 @@ end
     println(weights)
     @test all(weights .>= 0.15)
     labels_histogram = get_labels_histogram(labels)
-    preds = predict(model,data)
+    preds = predict(model,data)[1]
+    println(size(preds))
+    println(size(labels))
     @test all(preds .== labels)
     for (k,v) in labels_histogram
         @test v == 250
