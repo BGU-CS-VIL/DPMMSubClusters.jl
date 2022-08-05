@@ -67,6 +67,12 @@ function init_first_clusters!(dp_model::dp_parallel_sampling, initial_cluster_co
         push!(dp_model.group.local_clusters, create_first_local_cluster(dp_model.group))
     end
     @sync update_suff_stats_posterior!(dp_model.group)
+    if use_smart_splits
+        for i=1:length(dp_model.group.local_clusters)
+            smart_cluster_init!(dp_model.group,i)
+        end
+        @sync update_suff_stats_posterior!(dp_model.group)
+    end
     sample_clusters!(dp_model.group,false)
     broadcast_cluster_params([create_thin_cluster_params(x) for x in dp_model.group.local_clusters],[1.0])
 end
@@ -102,6 +108,7 @@ Run the model.
  - `max_clusters` limit the number of cluster
  - `outlier_weight` constant weight of an extra non-spliting component
  - `outlier_params` hyperparams for an extra non-spliting component
+ - `smart_splits` should use smart splits (Gaussian only, default is false)
 
 # Return values
 dp_model, iter_count , nmi_score_history, liklihood_history, cluster_count_history
@@ -123,7 +130,8 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
          gt = nothing,
          max_clusters = Inf,
          outlier_weight = 0,
-         outlier_params = nothing)
+         outlier_params = nothing,
+         smart_splits = false)
     global iterations = iters
     global random_seed = seed
     global hyper_params = local_hyper_params
@@ -135,6 +143,7 @@ function dp_parallel(all_data::AbstractArray{Float32,2},
     global max_num_of_clusters = max_clusters
     global outlier_mod = outlier_weight
     global outlier_hyper_params = outlier_params
+    global use_smart_splits = smart_splits
     dp_model = init_model_from_data(all_data)
     global leader_dict = get_node_leaders_dict()
     init_first_clusters!(dp_model, initial_clusters)
@@ -149,7 +158,7 @@ end
 
 """
     fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
-       iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
+       iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing,  smart_splits = false)
 
 Run the model (basic mode).
 # Args and Kwargs
@@ -166,6 +175,7 @@ Run the model (basic mode).
  - `max_clusters` limit the number of cluster
  - `outlier_weight` constant weight of an extra non-spliting component
  - `outlier_params` hyperparams for an extra non-spliting component
+ - `smart_splits` should use smart splits (Gaussian only, default is false)
 
 # Return Values
  - `labels` Labels assignments
@@ -203,14 +213,14 @@ julia> unique(ret_values[1])
 ```
 """
 function fit(all_data::AbstractArray{Float32,2},local_hyper_params::distribution_hyper_params,α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
-        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose, save_model,burnout,gt, max_clusters, outlier_weight, outlier_params)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false, burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing, smart_splits = false)
+        dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters,seed,verbose, save_model,burnout,gt, max_clusters, outlier_weight, outlier_params,smart_splits)
         return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history,Array(dp_model.group.labels_subcluster),dp_model
 end
 
 """
     fit(all_data::AbstractArray{Float32,2},α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing, smart_splits = false)
 
 
 Run the model (basic mode) with default `NIW` prior.
@@ -226,6 +236,7 @@ Run the model (basic mode) with default `NIW` prior.
  - `gt` Ground truth, when supplied, will perform NMI and VI analysis on every iteration.
  - `outlier_weight` constant weight of an extra non-spliting component
  - `outlier_params` hyperparams for an extra non-spliting component
+ - `smart_splits` should use smart splits (Gaussian only, default is false)
 
 # Return Values
  - `labels` Labels assignments
@@ -257,29 +268,29 @@ julia> unique(ret_values[1])
 ```
 """
 function fit(all_data::AbstractArray{Float32,2},α_param::Float32;
-        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing)
+        iters::Int64 = 100, init_clusters::Int64 = 1,seed = nothing, verbose = true, save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing, smart_splits = false)
     data_dim = size(all_data,1)
     cov_mat = Matrix{Float32}(I, data_dim, data_dim)
     local_hyper_params = niw_hyperparams(1,zeros(Float32,data_dim),data_dim+3,cov_mat)
-    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters, seed,verbose,save_model,burnout,gt, max_clusters,outlier_weight, outlier_params)
+    dp_model,iter_count , nmi_score_history, liklihood_history, cluster_count_history = dp_parallel(all_data, local_hyper_params,α_param,iters,init_clusters, seed,verbose,save_model,burnout,gt, max_clusters,outlier_weight, outlier_params,smart_splits)
     return Array(dp_model.group.labels), [x.cluster_params.cluster_params.distribution for x in dp_model.group.local_clusters], dp_model.group.weights,iter_count , nmi_score_history, liklihood_history, cluster_count_history, Array(dp_model.group.labels_subcluster), dp_model
 end
 
 fit(all_data::AbstractArray, α_param;
         iters = 100, init_clusters = 1,
         seed = nothing, verbose = true,
-        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing) =
+        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing, smart_splits = false) =
     fit(Float32.(all_data),Float32(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
-        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters, outlier_weight = outlier_weight, outlier_params = outlier_params)
+        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters, outlier_weight = outlier_weight, outlier_params = outlier_params, smart_splits = smart_splits)
 
 fit(all_data::AbstractArray,local_hyper_params::distribution_hyper_params,α_param;
         iters = 100, init_clusters::Number = 1,
         seed = nothing, verbose = true,
-        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing) =
+        save_model = false,burnout = 20, gt = nothing, max_clusters = Inf, outlier_weight = 0, outlier_params = nothing, smart_splits = false) =
     fit(Float32.(all_data),local_hyper_params,Float32(α_param),iters = Int64(iters),
         init_clusters=Int64(init_clusters), seed = seed, verbose = verbose,
-        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters, outlier_weight = outlier_weight, outlier_params = outlier_params)
+        save_model = save_model, burnout = burnout, gt = gt, max_clusters = max_clusters, outlier_weight = outlier_weight, outlier_params = outlier_params, smart_splits = smart_splits)
 
 
 
@@ -312,6 +323,7 @@ function dp_parallel(model_params::String; verbose = true, gt = nothing)
     global ground_truth = gt
     global burnout_period = burnout_period
     global max_num_of_clusters = max_clusters
+    global use_smart_splits = smart_splits
     init_first_clusters!(dp_model, initial_clusters)
     if use_verbose
         println("Node Leaders:")
