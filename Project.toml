@@ -1,7 +1,7 @@
 name = "DPMMSubClusters"
 uuid = "2841fd70-8698-11e9-176d-6dfa142d2ee7"
 authors = ["Or Dinari <dinari.or@gmail.com>"]
-version = "0.1.12"
+version = "0.1.13"
 
 [deps]
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
